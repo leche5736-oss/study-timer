@@ -26,7 +26,8 @@ jobs:
           cache: true
       - name: 버전 읽기
         id: version
-        run: echo "version=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')" >> "$GITHUB_OUTPUT"
       - run: flutter pub get
       - run: flutter build macos --release
       - name: 압축
