@@ -63,7 +63,8 @@ class HistoryTab extends StatelessWidget {
           subtitle: Text(
             '${_formatDate(s.startedAt)}'
             '${s.focusRating == null ? '' : ' · 집중도 ${s.focusRating}'}'
-            '${RestType.byName(s.restType) == null ? '' : ' · 휴식: ${RestType.byName(s.restType)!.label}'}',
+            '${RestType.byName(s.restType) == null ? '' : ' · 휴식: ${RestType.byName(s.restType)!.label}'}'
+            '${s.distractions == 0 ? '' : ' · 딴짓 ${s.distractions}회 ${formatDuration(s.distractedSeconds)}'}',
           ),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,

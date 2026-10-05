@@ -57,6 +57,8 @@ class StudySession {
   final String recallNote; // 방금 배운 것 3줄
   final String question; // 예전 버전에서 쓰던 "스스로 낸 문제" (지금은 입력 안 받음)
   final String? restType; // 이 블록 뒤 휴식 중 한 일 (RestType.name)
+  final int distractions; // 딴짓 앱으로 넘어간 횟수
+  final int distractedSeconds; // 딴짓 앱에 머문 시간
   final bool deleted;
   final DateTime updatedAt;
 
@@ -71,6 +73,8 @@ class StudySession {
     this.recallNote = '',
     this.question = '',
     this.restType,
+    this.distractions = 0,
+    this.distractedSeconds = 0,
     this.deleted = false,
     required this.updatedAt,
   });
@@ -86,6 +90,8 @@ class StudySession {
     recallNote: recallNote,
     question: question,
     restType: restType ?? this.restType,
+    distractions: distractions,
+    distractedSeconds: distractedSeconds,
     deleted: deleted ?? this.deleted,
     updatedAt: DateTime.now().toUtc(),
   );
@@ -101,6 +107,8 @@ class StudySession {
     'recall_note': recallNote,
     'question': question,
     'rest_type': restType,
+    'distractions': distractions,
+    'distracted_seconds': distractedSeconds,
     'deleted': deleted,
     'updated_at': updatedAt.toIso8601String(),
   };
@@ -116,6 +124,8 @@ class StudySession {
     recallNote: j['recall_note'] as String? ?? '',
     question: j['question'] as String? ?? '',
     restType: j['rest_type'] as String?,
+    distractions: (j['distractions'] as num?)?.toInt() ?? 0,
+    distractedSeconds: (j['distracted_seconds'] as num?)?.toInt() ?? 0,
     deleted: j['deleted'] as bool? ?? false,
     updatedAt: _parse(j['updated_at'])!,
   );
@@ -164,6 +174,9 @@ class Settings {
   final int customLongRestMin;
   final bool sound;
   final bool bringToFront; // Mac: 시간이 다 되면 앱 창을 앞으로
+  final int dayStartHour; // 하루가 바뀌는 시각 (새벽 공부를 전날로 묶기)
+  final bool watchApps; // Mac: 집중 중 딴짓 앱 감지
+  final List<String> blockedApps; // 딴짓 앱 이름 목록
 
   const Settings({
     this.dailyGoalMin = 180,
@@ -172,6 +185,9 @@ class Settings {
     this.customLongRestMin = 20,
     this.sound = true,
     this.bringToFront = true,
+    this.dayStartHour = 5,
+    this.watchApps = true,
+    this.blockedApps = const [],
   });
 
   Preset get customPreset => Preset(
@@ -191,6 +207,9 @@ class Settings {
     int? customLongRestMin,
     bool? sound,
     bool? bringToFront,
+    int? dayStartHour,
+    bool? watchApps,
+    List<String>? blockedApps,
   }) => Settings(
     dailyGoalMin: dailyGoalMin ?? this.dailyGoalMin,
     customFocusMin: customFocusMin ?? this.customFocusMin,
@@ -198,6 +217,9 @@ class Settings {
     customLongRestMin: customLongRestMin ?? this.customLongRestMin,
     sound: sound ?? this.sound,
     bringToFront: bringToFront ?? this.bringToFront,
+    dayStartHour: dayStartHour ?? this.dayStartHour,
+    watchApps: watchApps ?? this.watchApps,
+    blockedApps: blockedApps ?? this.blockedApps,
   );
 
   Map<String, dynamic> toJson() => {
@@ -207,6 +229,9 @@ class Settings {
     'custom_long_rest_min': customLongRestMin,
     'sound': sound,
     'bring_to_front': bringToFront,
+    'day_start_hour': dayStartHour,
+    'watch_apps': watchApps,
+    'blocked_apps': blockedApps,
   };
 
   factory Settings.fromJson(Map<String, dynamic> j) {
@@ -220,6 +245,10 @@ class Settings {
           (j['custom_long_rest_min'] as num?)?.toInt() ?? d.customLongRestMin,
       sound: j['sound'] as bool? ?? d.sound,
       bringToFront: j['bring_to_front'] as bool? ?? d.bringToFront,
+      dayStartHour: (j['day_start_hour'] as num?)?.toInt() ?? d.dayStartHour,
+      watchApps: j['watch_apps'] as bool? ?? d.watchApps,
+      blockedApps:
+          (j['blocked_apps'] as List?)?.cast<String>() ?? d.blockedApps,
     );
   }
 }
@@ -248,6 +277,9 @@ class TimerState {
   final int restMin;
   final int longRestMin;
   final String? lastSessionId; // 휴식 단계: 방금 끝낸 블록 (휴식 방식 기록용)
+  final int distractions; // 이번 블록에서 딴짓 앱으로 넘어간 횟수
+  final int distractedSec; // 이번 블록에서 딴짓 앱에 머문 시간 (끝난 것만)
+  final DateTime? distractedSince; // 지금 딴짓 앱에 있으면 그 시작 시각
   final DateTime updatedAt;
 
   const TimerState({
@@ -267,6 +299,9 @@ class TimerState {
     this.restMin = 5,
     this.longRestMin = 15,
     this.lastSessionId,
+    this.distractions = 0,
+    this.distractedSec = 0,
+    this.distractedSince,
     required this.updatedAt,
   });
 
@@ -307,6 +342,9 @@ class TimerState {
     'rest_min': restMin,
     'long_rest_min': longRestMin,
     'last_session_id': lastSessionId,
+    'distractions': distractions,
+    'distracted_sec': distractedSec,
+    'distracted_since': distractedSince?.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
   };
 
@@ -335,7 +373,47 @@ class TimerState {
       longRestMin:
           (j['long_rest_min'] as num?)?.toInt() ?? fallback.longRestMin,
       lastSessionId: j['last_session_id'] as String?,
+      distractions: (j['distractions'] as num?)?.toInt() ?? 0,
+      distractedSec: (j['distracted_sec'] as num?)?.toInt() ?? 0,
+      distractedSince: _parse(j['distracted_since']),
       updatedAt: _parse(j['updated_at'])!,
     );
   }
+}
+
+/// 집중 중 떠오른 딴생각 한 줄. 적어 두고 휴식 때 처리합니다.
+/// 이 기기에만 저장합니다.
+class ThoughtNote {
+  final String id;
+  final String text;
+  final DateTime createdAt;
+  final bool done;
+
+  const ThoughtNote({
+    required this.id,
+    required this.text,
+    required this.createdAt,
+    this.done = false,
+  });
+
+  ThoughtNote copyWith({bool? done}) => ThoughtNote(
+    id: id,
+    text: text,
+    createdAt: createdAt,
+    done: done ?? this.done,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'text': text,
+    'created_at': createdAt.toIso8601String(),
+    'done': done,
+  };
+
+  factory ThoughtNote.fromJson(Map<String, dynamic> j) => ThoughtNote(
+    id: j['id'] as String,
+    text: j['text'] as String,
+    createdAt: _parse(j['created_at'])!,
+    done: j['done'] as bool? ?? false,
+  );
 }

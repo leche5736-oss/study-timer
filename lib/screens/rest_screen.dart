@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/store.dart';
 import '../stats.dart';
+import 'thoughts_list.dart';
 
 /// 조용한 휴식 모드. 휴식 중 뇌는 방금 배운 것을 되풀이(replay)하며
 /// 기억을 굳히므로, 화면을 어둡게 하고 호흡 안내만 보여줍니다.
@@ -119,6 +120,16 @@ class _RestScreenState extends State<RestScreen>
                       ),
                   ],
                 ),
+                if (widget.store.thoughts.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: ThoughtsList(store: widget.store, textColor: dim),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: widget.store.skipRest,

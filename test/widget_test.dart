@@ -22,7 +22,7 @@ void main() {
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     expect(find.text('수학'), findsOneWidget);
-    expect(find.text('공부 타이머 v0.4.0'), findsOneWidget);
+    expect(find.text('공부 타이머 v0.5.0'), findsOneWidget);
 
     await tester.tap(find.byTooltip('색 바꾸기'));
     await tester.pumpAndSettle();
@@ -37,6 +37,11 @@ void main() {
     expect(find.textContaining('집중 중'), findsOneWidget);
     expect(find.text('25:00'), findsOneWidget);
 
+    await tester.enterText(find.widgetWithText(TextField, '딴생각 메모'), '택배 찾기');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(store.thoughts.single.text, '택배 찾기');
+
     await tester.tap(find.text('지금 끝내기'));
     await tester.pump();
     expect(find.text('정리 노트'), findsOneWidget);
@@ -44,8 +49,18 @@ void main() {
     await tester.tap(find.text('저장하고 조용한 휴식 시작'));
     await tester.pump();
     expect(find.text('조용한 휴식'), findsOneWidget);
+    expect(find.text('택배 찾기'), findsOneWidget); // 휴식 때 다시 보여줌
     await tester.tap(find.text('휴식 건너뛰기'));
     await tester.pump();
     expect(find.text('다음 블록 시작'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.bar_chart));
+    await tester.pumpAndSettle();
+    expect(find.text('총 시간'), findsOneWidget);
+    for (final tab in ['달력', '패턴', '분석']) {
+      await tester.tap(find.text(tab));
+      await tester.pumpAndSettle();
+    }
+    expect(find.textContaining('딴생각 메모 1개'), findsOneWidget);
   });
 }

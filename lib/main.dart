@@ -23,6 +23,9 @@ Future<void> main() async {
       AppWindow.bringToFront();
     }
   };
+  AppWindow.listenFrontApp((app) {
+    if (store.frontAppChanged(app)) notifications.nudge(app);
+  });
   store.tick(); // 앱이 꺼져 있던 동안 끝난 단계 정리
   store.startTicking();
 

@@ -66,3 +66,7 @@ create trigger timer_keep_newer before update on public.timer_state
 
 -- 0.4.0: 휴식 중 한 일 (이미 테이블을 만들었다면 이 줄만 다시 실행해도 됩니다)
 alter table public.sessions add column if not exists rest_type text;
+
+-- 0.5.0: 딴짓 앱 감지 기록
+alter table public.sessions add column if not exists distractions int not null default 0;
+alter table public.sessions add column if not exists distracted_seconds int not null default 0;

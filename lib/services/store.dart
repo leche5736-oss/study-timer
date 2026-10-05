@@ -17,6 +17,7 @@ class AppStore extends ChangeNotifier {
   static const _kSessions = 'sessions';
   static const _kTimer = 'timer';
   static const _kSettings = 'settings';
+  static const _kThoughts = 'thoughts';
 
   final SharedPreferences _prefs;
   final DateTime Function() _clock;
@@ -25,6 +26,7 @@ class AppStore extends ChangeNotifier {
   final Map<String, StudySession> _sessions = {};
   TimerState _timer = TimerState.initial();
   Settings _settings = const Settings();
+  final List<ThoughtNote> _thoughts = [];
 
   /// 사용자가 이 기기에서 무언가 바꿨을 때 호출됩니다.
   void Function()? onLocalChange;
@@ -61,6 +63,11 @@ class AppStore extends ChangeNotifier {
 
   StudySession? session(String? id) => id == null ? null : _sessions[id];
 
+  /// 딴생각 메모 (오래된 것부터).
+  List<ThoughtNote> get thoughts => List.unmodifiable(_thoughts);
+  List<ThoughtNote> get openThoughts =>
+      _thoughts.where((t) => !t.done).toList();
+
   void _load() {
     final subj = _prefs.getString(_kSubjects);
     if (subj != null) {
@@ -80,6 +87,14 @@ class AppStore extends ChangeNotifier {
     if (st != null) {
       _settings = Settings.fromJson(jsonDecode(st) as Map<String, dynamic>);
     }
+    final th = _prefs.getString(_kThoughts);
+    if (th != null) {
+      _thoughts.addAll(
+        (jsonDecode(th) as List).map(
+          (j) => ThoughtNote.fromJson(j as Map<String, dynamic>),
+        ),
+      );
+    }
     final t = _prefs.getString(_kTimer);
     if (t != null) {
       _timer = TimerState.fromJson(jsonDecode(t) as Map<String, dynamic>);
@@ -97,6 +112,10 @@ class AppStore extends ChangeNotifier {
     );
     await _prefs.setString(_kTimer, jsonEncode(_timer.toJson()));
     await _prefs.setString(_kSettings, jsonEncode(_settings.toJson()));
+    await _prefs.setString(
+      _kThoughts,
+      jsonEncode(_thoughts.map((t) => t.toJson()).toList()),
+    );
   }
 
   void _changed({bool local = true}) {
@@ -173,6 +192,8 @@ class AppStore extends ChangeNotifier {
       recallNote: recallNote,
       question: old?.question ?? '',
       restType: old?.restType,
+      distractions: old?.distractions ?? 0,
+      distractedSeconds: old?.distractedSeconds ?? 0,
       updatedAt: now,
     );
     _sessions[s.id] = s;
@@ -190,6 +211,33 @@ class AppStore extends ChangeNotifier {
 
   void updateSettings(Settings settings) {
     _settings = settings;
+    _changed(local: false);
+  }
+
+  // ---------- 딴생각 메모 ----------
+
+  void addThought(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return;
+    _thoughts.add(ThoughtNote(id: _uuid.v4(), text: t, createdAt: now));
+    _changed(local: false);
+  }
+
+  void toggleThought(String id) {
+    final i = _thoughts.indexWhere((t) => t.id == id);
+    if (i < 0) return;
+    _thoughts[i] = _thoughts[i].copyWith(done: !_thoughts[i].done);
+    _changed(local: false);
+  }
+
+  /// 처리한 메모를 모두 지웁니다.
+  void clearDoneThoughts() {
+    _thoughts.removeWhere((t) => t.done);
+    _changed(local: false);
+  }
+
+  void deleteThought(String id) {
+    _thoughts.removeWhere((t) => t.id == id);
     _changed(local: false);
   }
 
@@ -230,6 +278,19 @@ class AppStore extends ChangeNotifier {
   void finishFocus() => _setTimer(TimerLogic.finishFocus(_timer, now));
   void cancel() => _setTimer(TimerLogic.toIdle(_timer, now));
   void skipRest() => _setTimer(TimerLogic.toIdle(_timer, now));
+
+  /// 맨 앞 앱이 바뀌었을 때 (Mac). 딴짓 앱 목록에 있으면 딴짓으로 셉니다.
+  /// 새로 딴짓을 시작했으면 true (알림을 띄우는 데 씁니다).
+  bool frontAppChanged(String appName) {
+    final blocked =
+        _settings.watchApps && _settings.blockedApps.contains(appName);
+    final next = blocked
+        ? TimerLogic.enterDistraction(_timer, now)
+        : TimerLogic.leaveDistraction(_timer, now);
+    if (identical(next, _timer)) return false;
+    _setTimer(next);
+    return blocked;
+  }
 
   void submitRecall({int? rating, String note = ''}) {
     final (session, next) = TimerLogic.submitRecall(

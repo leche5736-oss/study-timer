@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/notifications.dart';
 import '../services/store.dart';
+import '../services/window.dart';
 import '../version.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -30,6 +31,24 @@ class SettingsScreen extends StatelessWidget {
                 step: 30,
                 onChanged: (v) =>
                     store.updateSettings(s.copyWith(dailyGoalMin: v)),
+              ),
+              ListTile(
+                title: const Text('하루가 바뀌는 시각'),
+                subtitle: Text(
+                  '새벽 ${s.dayStartHour}시 전 공부는 전날 기록으로 셉니다 (통계, 오늘 목표)',
+                ),
+                trailing: DropdownButton<int>(
+                  value: s.dayStartHour,
+                  items: [
+                    for (var h = 0; h <= 8; h++)
+                      DropdownMenuItem(
+                        value: h,
+                        child: Text(h == 0 ? '자정' : '새벽 $h시'),
+                      ),
+                  ],
+                  onChanged: (v) =>
+                      store.updateSettings(s.copyWith(dayStartHour: v)),
+                ),
               ),
               const _Header('직접 설정 타이머 길이'),
               _MinutesTile(
@@ -76,12 +95,115 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (v) =>
                       store.updateSettings(s.copyWith(bringToFront: v)),
                 ),
+              if (isMac) ...[
+                const _Header('딴짓 앱 감지'),
+                SwitchListTile(
+                  title: const Text('집중 중 딴짓 앱을 열면 알려 주기'),
+                  subtitle: const Text(
+                    '아래 앱이 맨 앞에 오면 알림을 띄우고 딴짓 횟수·시간을 기록해요. '
+                    '브라우저는 앱 단위라 사이트(유튜브 등)는 구분하지 못해요.',
+                  ),
+                  value: s.watchApps,
+                  onChanged: (v) =>
+                      store.updateSettings(s.copyWith(watchApps: v)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final app in s.blockedApps)
+                        InputChip(
+                          label: Text(app),
+                          onDeleted: () => store.updateSettings(
+                            s.copyWith(
+                              blockedApps: [
+                                for (final a in s.blockedApps)
+                                  if (a != app) a,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ActionChip(
+                        avatar: const Icon(Icons.add, size: 18),
+                        label: const Text('딴짓 앱 추가'),
+                        onPressed: () => _addApps(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Divider(),
               ListTile(title: const Text('버전'), trailing: Text(appVersion)),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+extension on SettingsScreen {
+  /// 켜져 있는 앱 중에서 고르거나 이름을 직접 적어 딴짓 앱으로 추가합니다.
+  Future<void> _addApps(BuildContext context) async {
+    final running = await AppWindow.runningApps();
+    if (!context.mounted) return;
+    final current = store.settings.blockedApps;
+    final picked = <String>{};
+    final typed = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setState) => AlertDialog(
+          title: const Text('딴짓 앱 추가'),
+          content: SizedBox(
+            width: 360,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                const Text('지금 켜져 있는 앱'),
+                for (final app in running)
+                  if (!current.contains(app))
+                    CheckboxListTile(
+                      dense: true,
+                      title: Text(app),
+                      value: picked.contains(app),
+                      onChanged: (v) => setState(
+                        () => v == true ? picked.add(app) : picked.remove(app),
+                      ),
+                    ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: typed,
+                  decoration: const InputDecoration(
+                    labelText: '목록에 없으면 앱 이름 직접 입력',
+                    hintText: '예: KakaoTalk',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('추가'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final name = typed.text.trim();
+    typed.dispose();
+    if (ok != true) return;
+    if (name.isNotEmpty) picked.add(name);
+    final s = store.settings;
+    store.updateSettings(
+      s.copyWith(blockedApps: {...s.blockedApps, ...picked}.toList()),
     );
   }
 }

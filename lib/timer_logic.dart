@@ -31,7 +31,38 @@ class TimerLogic {
 
   static TimerState pause(TimerState s, DateTime now) {
     if (!s.isRunning) return s;
-    return _copy(s, now, accumulatedSec: s.elapsedSec(now), clearRunning: true);
+    return _copy(
+      leaveDistraction(s, now),
+      now,
+      accumulatedSec: s.elapsedSec(now),
+      clearRunning: true,
+    );
+  }
+
+  /// 집중 중에 딴짓 앱으로 넘어갔을 때. 횟수를 세고 머문 시간을 재기 시작합니다.
+  static TimerState enterDistraction(TimerState s, DateTime now) {
+    if (s.phase != Phase.focus || !s.isRunning || s.distractedSince != null) {
+      return s;
+    }
+    return _copy(
+      s,
+      now,
+      distractions: s.distractions + 1,
+      distractedSince: now,
+    );
+  }
+
+  /// 딴짓 앱에서 벗어났을 때. 머문 시간을 더합니다.
+  static TimerState leaveDistraction(TimerState s, DateTime now) {
+    final since = s.distractedSince;
+    if (since == null) return s;
+    final sec = now.difference(since).inSeconds;
+    return _copy(
+      s,
+      now,
+      distractedSec: s.distractedSec + (sec < 0 ? 0 : sec),
+      clearDistractedSince: true,
+    );
   }
 
   static TimerState resume(TimerState s, DateTime now) {
@@ -44,6 +75,7 @@ class TimerLogic {
   /// 집중을 마치고 정리 노트 단계로. 일찍 끝내도 실제 집중한 시간만 기록됩니다.
   static TimerState finishFocus(TimerState s, DateTime now) {
     if (s.phase != Phase.focus) return s;
+    s = leaveDistraction(s, now);
     final elapsed = s.elapsedSec(now);
     final focused = s.stopwatch ? elapsed : elapsed.clamp(0, s.durationSec);
     return TimerState(
@@ -58,6 +90,8 @@ class TimerLogic {
       focusMin: s.focusMin,
       restMin: s.restMin,
       longRestMin: s.longRestMin,
+      distractions: s.distractions,
+      distractedSec: s.distractedSec,
       updatedAt: now,
     );
   }
@@ -85,6 +119,8 @@ class TimerLogic {
       focusSeconds: focused,
       focusRating: focusRating,
       recallNote: recallNote,
+      distractions: s.distractions,
+      distractedSeconds: s.distractedSec,
       updatedAt: now,
     );
     final next = TimerState(
@@ -138,6 +174,10 @@ class TimerLogic {
     int? accumulatedSec,
     DateTime? runningSince,
     bool clearRunning = false,
+    int? distractions,
+    int? distractedSec,
+    DateTime? distractedSince,
+    bool clearDistractedSince = false,
   }) => TimerState(
     phase: s.phase,
     subjectId: s.subjectId,
@@ -155,6 +195,11 @@ class TimerLogic {
     restMin: s.restMin,
     longRestMin: s.longRestMin,
     lastSessionId: s.lastSessionId,
+    distractions: distractions ?? s.distractions,
+    distractedSec: distractedSec ?? s.distractedSec,
+    distractedSince: clearDistractedSince
+        ? null
+        : (distractedSince ?? s.distractedSince),
     updatedAt: now,
   );
 }

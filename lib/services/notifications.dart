@@ -13,6 +13,7 @@ class Notifications {
   static final instance = Notifications._();
 
   static const _id = 1;
+  static const _nudgeId = 2;
 
   /// 알림 소리. 설정 화면에서 바꿉니다.
   bool sound = true;
@@ -74,6 +75,23 @@ class Notifications {
       );
     } catch (e) {
       debugPrint('알림 예약 실패: $e');
+    }
+  }
+
+  /// 딴짓 앱으로 넘어갔을 때 바로 띄우는 알림.
+  Future<void> nudge(String appName) async {
+    if (!_ready) return;
+    try {
+      await _plugin.show(
+        id: _nudgeId,
+        title: '지금은 집중 시간이에요',
+        body: '$appName 대신 공부로 돌아갈까요?',
+        notificationDetails: NotificationDetails(
+          macOS: DarwinNotificationDetails(presentSound: sound),
+        ),
+      );
+    } catch (e) {
+      debugPrint('알림 표시 실패: $e');
     }
   }
 
