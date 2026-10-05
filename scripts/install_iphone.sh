@@ -4,9 +4,7 @@
 # (처음 한 번은 README의 "iPhone / iPad에 설치하기"에 있는 Xcode 서명 설정이 필요합니다.)
 set -e
 cd "$(dirname "$0")/.."
-for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-  [ -x "$b" ] && eval "$("$b" shellenv)"
-done
+export PATH="$HOME/development/flutter/bin:$PATH"
 
 flutter pub get
 flutter build ios --release

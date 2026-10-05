@@ -1,6 +1,6 @@
 #!/bin/bash
 # 공부 타이머를 Mac에 설치합니다.
-# 처음 실행하면 필요한 도구(Homebrew, Flutter)를 설치하고, 앱을 빌드해서
+# 처음 실행하면 Flutter를 설치하고, 앱을 빌드해서
 # "응용 프로그램" 폴더에 넣습니다. 새 버전을 받을 때도 이 스크립트를 다시 실행하면 됩니다.
 set -e
 
@@ -21,26 +21,29 @@ if [ "$(xcode-select -p 2>/dev/null)" != "/Applications/Xcode.app/Contents/Devel
   sudo xcodebuild -runFirstLaunch
 fi
 
-# 2. Homebrew
-if ! command -v brew >/dev/null 2>&1; then
-  for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-    [ -x "$b" ] && eval "$("$b" shellenv)"
-  done
+# 2. Flutter (Homebrew 없이 공식 압축 파일을 ~/development/flutter 에 풉니다)
+FLUTTER_VERSION=3.47.6
+FLUTTER_DIR="$HOME/development/flutter"
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ]; then
+  FLUTTER_ZIP="flutter_macos_arm64_${FLUTTER_VERSION}-stable.zip" # Apple 칩 (M1 등)
+else
+  FLUTTER_ZIP="flutter_macos_${FLUTTER_VERSION}-stable.zip" # Intel 칩
 fi
-if ! command -v brew >/dev/null 2>&1; then
-  say "Homebrew 설치"
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-    [ -x "$b" ] && eval "$("$b" shellenv)"
-  done
-  # 다음에 터미널을 열 때도 brew를 찾을 수 있게
-  grep -q 'brew shellenv' ~/.zprofile 2>/dev/null ||
-    echo "eval \"\$($(command -v brew) shellenv)\"" >> ~/.zprofile
+if [ ! -x "$FLUTTER_DIR/bin/flutter" ]; then
+  say "Flutter 설치"
+  mkdir -p "$HOME/development"
+  curl -fL -o "/tmp/$FLUTTER_ZIP" \
+    "https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/$FLUTTER_ZIP"
+  unzip -q "/tmp/$FLUTTER_ZIP" -d "$HOME/development"
+  rm -f "/tmp/$FLUTTER_ZIP"
 fi
+export PATH="$FLUTTER_DIR/bin:$PATH"
+# 다음에 터미널을 열 때도 flutter 명령을 찾을 수 있게
+grep -q 'development/flutter/bin' ~/.zprofile 2>/dev/null ||
+  echo 'export PATH="$HOME/development/flutter/bin:$PATH"' >> ~/.zprofile
+flutter config --no-analytics >/dev/null 2>&1 || true
 
-# 3. Flutter, CocoaPods
-command -v flutter >/dev/null 2>&1 || { say "Flutter 설치"; brew install --cask flutter; }
-command -v pod >/dev/null 2>&1 || { say "CocoaPods 설치"; brew install cocoapods; }
+# 3. 플러그인은 모두 Swift Package Manager를 지원하므로 CocoaPods는 필요 없습니다.
 
 # 4. 빌드
 say "앱 빌드 (처음에는 몇 분 걸립니다)"

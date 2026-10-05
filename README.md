@@ -27,7 +27,7 @@
    cd ~ && (git clone -b claude/project-thread-0xriid https://github.com/leche5736-oss/study-timer.git 2>/dev/null || true) && cd study-timer && git pull && ./scripts/install_mac.sh
    ```
 
-스크립트가 필요한 도구(Homebrew, Flutter)를 설치하고 앱을 빌드해서 **응용 프로그램** 폴더에 "공부 타이머"로 넣어 줍니다. 처음에는 꽤 오래 걸리고, 중간에 Mac 비밀번호를 물으면 입력하면 됩니다(입력해도 화면에 안 보이는 게 정상입니다). 그다음부터는 Launchpad에서 일반 앱처럼 열면 됩니다. Mac 앱은 7일 제한이 없습니다.
+스크립트가 Flutter를 설치하고 앱을 빌드해서 **응용 프로그램** 폴더에 "공부 타이머"로 넣어 줍니다. 처음에는 꽤 오래 걸리고, 중간에 Mac 비밀번호를 물으면 입력하면 됩니다(입력해도 화면에 안 보이는 게 정상입니다). 그다음부터는 Launchpad에서 일반 앱처럼 열면 됩니다. Mac 앱은 7일 제한이 없습니다.
 
 새 버전이 나오면 같은 한 줄을 다시 실행하면 됩니다.
 
