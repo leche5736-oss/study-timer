@@ -43,6 +43,8 @@ class AppStore extends ChangeNotifier {
 
   DateTime get now => _clock();
 
+  SharedPreferences get prefs => _prefs;
+
   List<Subject> get subjects =>
       _subjects.values.where((s) => !s.deleted).toList()
         ..sort((a, b) => a.name.compareTo(b.name));

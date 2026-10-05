@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/store.dart';
+import '../services/sync_config.dart';
+
 /// 동기화가 켜져 있을 때만 보이는 로그인 화면. 모든 기기에서 같은 계정으로 로그인하세요.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final AppStore store;
+  const LoginScreen({super.key, required this.store});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -84,6 +88,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       }),
                 child: const Text('처음이면 회원가입'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => SyncConfig.disconnect(widget.store.prefs),
+                child: const Text('동기화 끄고 이 기기에서만 쓰기'),
               ),
               if (_message != null) ...[
                 const SizedBox(height: 16),

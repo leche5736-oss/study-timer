@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/notifications.dart';
 import '../services/store.dart';
+import '../services/sync_config.dart';
 import '../services/window.dart';
 import '../version.dart';
 
@@ -95,6 +96,14 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (v) =>
                       store.updateSettings(s.copyWith(bringToFront: v)),
                 ),
+              if (isMac)
+                SwitchListTile(
+                  title: const Text('메뉴 막대에 남은 시간 표시'),
+                  subtitle: const Text('화면 맨 위 메뉴 막대에서 창을 열지 않고 시간을 봐요'),
+                  value: s.menuBar,
+                  onChanged: (v) =>
+                      store.updateSettings(s.copyWith(menuBar: v)),
+                ),
               if (isMac) ...[
                 const _Header('딴짓 앱 감지'),
                 SwitchListTile(
@@ -134,6 +143,27 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               ],
+              const _Header('기기 간 동기화'),
+              ValueListenableBuilder<SyncConfig?>(
+                valueListenable: SyncConfig.active,
+                builder: (context, sync, _) => ListTile(
+                  title: Text(sync == null ? '꺼짐 (이 기기에만 저장)' : '켜짐'),
+                  subtitle: Text(
+                    sync == null
+                        ? 'Supabase 주소와 키를 넣으면 Mac, iPhone, iPad 기록이 합쳐져요'
+                        : sync.url,
+                  ),
+                  trailing: sync == null
+                      ? FilledButton(
+                          onPressed: () => _connectSync(context),
+                          child: const Text('연결'),
+                        )
+                      : OutlinedButton(
+                          onPressed: () => SyncConfig.disconnect(store.prefs),
+                          child: const Text('끄기'),
+                        ),
+                ),
+              ),
               const Divider(),
               ListTile(title: const Text('버전'), trailing: Text(appVersion)),
             ],
@@ -145,6 +175,93 @@ class SettingsScreen extends StatelessWidget {
 }
 
 extension on SettingsScreen {
+  /// Supabase 주소와 키를 받아 동기화를 켭니다.
+  Future<void> _connectSync(BuildContext context) async {
+    final url = TextEditingController();
+    final key = TextEditingController();
+    String? error;
+    var busy = false;
+    await showDialog<void>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setState) => AlertDialog(
+          title: const Text('동기화 연결'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Supabase 프로젝트의 Project Settings > API(또는 Data API) 화면에서 복사해 붙여 넣으세요. '
+                  '모든 기기에 같은 값을 넣고 같은 계정으로 로그인하면 됩니다.',
+                ),
+                TextField(
+                  controller: url,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Project URL',
+                    hintText: 'https://xxxx.supabase.co',
+                  ),
+                ),
+                TextField(
+                  controller: key,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Publishable key (또는 anon key)',
+                  ),
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(error!, style: const TextStyle(color: Colors.red)),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      setState(() {
+                        busy = true;
+                        error = null;
+                      });
+                      try {
+                        await SyncConfig.connect(
+                          store.prefs,
+                          url.text,
+                          key.text,
+                        );
+                        if (c.mounted) Navigator.pop(c);
+                      } on FormatException catch (e) {
+                        setState(() => error = e.message);
+                      } on StateError catch (e) {
+                        setState(() => error = e.message);
+                      } catch (e) {
+                        setState(() => error = '연결 실패: $e');
+                      } finally {
+                        if (c.mounted) setState(() => busy = false);
+                      }
+                    },
+              child: const Text('연결'),
+            ),
+          ],
+        ),
+      ),
+    );
+    url.dispose();
+    key.dispose();
+    // 연결되면 로그인 화면이 나오도록 설정 화면을 닫습니다.
+    if (SyncConfig.active.value != null && context.mounted) {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+    }
+  }
+
   /// 켜져 있는 앱 중에서 고르거나 이름을 직접 적어 딴짓 앱으로 추가합니다.
   Future<void> _addApps(BuildContext context) async {
     final running = await AppWindow.runningApps();

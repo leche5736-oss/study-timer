@@ -4,6 +4,7 @@ import FlutterMacOS
 class MainFlutterWindow: NSWindow {
   private var channel: FlutterMethodChannel?
   private var frameBeforeMini: NSRect?
+  private var statusItem: NSStatusItem?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -29,6 +30,9 @@ class MainFlutterWindow: NSWindow {
         result(self.runningAppNames())
       case "frontApp":
         result(NSWorkspace.shared.frontmostApplication?.localizedName)
+      case "setStatus":
+        self.setStatus(call.arguments as? String)
+        result(nil)
       case "setMini":
         self.setMini((call.arguments as? Bool) ?? false)
         result(nil)
@@ -58,6 +62,29 @@ class MainFlutterWindow: NSWindow {
       .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != me }
       .compactMap { $0.localizedName }
     return Array(Set(names)).sorted()
+  }
+
+  /// 메뉴 막대에 남은 시간을 보여 줍니다. nil이면 메뉴 막대에서 뺍니다.
+  private func setStatus(_ text: String?) {
+    guard let text = text else {
+      if let item = statusItem { NSStatusBar.system.removeStatusItem(item) }
+      statusItem = nil
+      return
+    }
+    if statusItem == nil {
+      let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+      item.button?.target = self
+      item.button?.action = #selector(statusClicked)
+      item.button?.font = NSFont.monospacedDigitSystemFont(
+        ofSize: NSFont.systemFontSize, weight: .regular)
+      statusItem = item
+    }
+    statusItem?.button?.title = text
+  }
+
+  @objc private func statusClicked() {
+    NSApp.activate(ignoringOtherApps: true)
+    self.makeKeyAndOrderFront(nil)
   }
 
   /// 작은 창으로 줄여 다른 창들 위에 띄우거나, 원래대로 돌립니다.

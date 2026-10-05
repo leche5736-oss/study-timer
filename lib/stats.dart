@@ -609,3 +609,19 @@ String sessionsCsv(
   // 엑셀이 한글을 깨뜨리지 않게 BOM을 붙입니다.
   return '﻿${rows.map((r) => r.map(_csvCell).join(',')).join('\n')}\n';
 }
+
+// ---------- 메뉴 막대 ----------
+
+/// Mac 메뉴 막대에 보여 줄 글자. 대기·정리 노트 단계면 null.
+String? menuBarText(TimerState t, DateTime now) {
+  switch (t.phase) {
+    case Phase.focus:
+      final sec = t.stopwatch ? t.elapsedSec(now) : t.remainingSec(now);
+      return '${t.isRunning ? '집중' : '일시정지'} ${formatClock(sec)}';
+    case Phase.rest:
+      return '휴식 ${formatClock(t.remainingSec(now))}';
+    case Phase.idle:
+    case Phase.recall:
+      return null;
+  }
+}

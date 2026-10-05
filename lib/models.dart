@@ -177,6 +177,7 @@ class Settings {
   final int dayStartHour; // 하루가 바뀌는 시각 (새벽 공부를 전날로 묶기)
   final bool watchApps; // Mac: 집중 중 딴짓 앱 감지
   final List<String> blockedApps; // 딴짓 앱 이름 목록
+  final bool menuBar; // Mac: 메뉴 막대에 남은 시간 표시
 
   const Settings({
     this.dailyGoalMin = 180,
@@ -188,6 +189,7 @@ class Settings {
     this.dayStartHour = 5,
     this.watchApps = true,
     this.blockedApps = const [],
+    this.menuBar = true,
   });
 
   Preset get customPreset => Preset(
@@ -210,6 +212,7 @@ class Settings {
     int? dayStartHour,
     bool? watchApps,
     List<String>? blockedApps,
+    bool? menuBar,
   }) => Settings(
     dailyGoalMin: dailyGoalMin ?? this.dailyGoalMin,
     customFocusMin: customFocusMin ?? this.customFocusMin,
@@ -220,6 +223,7 @@ class Settings {
     dayStartHour: dayStartHour ?? this.dayStartHour,
     watchApps: watchApps ?? this.watchApps,
     blockedApps: blockedApps ?? this.blockedApps,
+    menuBar: menuBar ?? this.menuBar,
   );
 
   Map<String, dynamic> toJson() => {
@@ -232,6 +236,7 @@ class Settings {
     'day_start_hour': dayStartHour,
     'watch_apps': watchApps,
     'blocked_apps': blockedApps,
+    'menu_bar': menuBar,
   };
 
   factory Settings.fromJson(Map<String, dynamic> j) {
@@ -249,6 +254,7 @@ class Settings {
       watchApps: j['watch_apps'] as bool? ?? d.watchApps,
       blockedApps:
           (j['blocked_apps'] as List?)?.cast<String>() ?? d.blockedApps,
+      menuBar: j['menu_bar'] as bool? ?? d.menuBar,
     );
   }
 }

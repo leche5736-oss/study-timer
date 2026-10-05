@@ -3,12 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'config.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/notifications.dart';
 import 'services/store.dart';
+import 'services/sync_config.dart';
 import 'services/window.dart';
+import 'stats.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,15 +27,16 @@ Future<void> main() async {
   AppWindow.listenFrontApp((app) {
     if (store.frontAppChanged(app)) notifications.nudge(app);
   });
+  // Mac 메뉴 막대에 남은 시간 (매초 store가 바뀔 때마다 갱신).
+  store.addListener(() {
+    AppWindow.setStatus(
+      store.settings.menuBar ? menuBarText(store.timer, store.now) : null,
+    );
+  });
   store.tick(); // 앱이 꺼져 있던 동안 끝난 단계 정리
   store.startTicking();
 
-  if (AppConfig.syncEnabled) {
-    await Supabase.initialize(
-      url: AppConfig.supabaseUrl,
-      publishableKey: AppConfig.supabasePublishableKey,
-    );
-  }
+  await SyncConfig.startFromSaved(prefs);
   runApp(StudyTimerApp(store: store));
 }
 
@@ -51,9 +53,11 @@ class StudyTimerApp extends StatelessWidget {
       supportedLocales: const [Locale('ko')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
-      home: AppConfig.syncEnabled
-          ? AuthGate(store: store)
-          : HomeScreen(store: store),
+      home: ValueListenableBuilder<SyncConfig?>(
+        valueListenable: SyncConfig.active,
+        builder: (context, sync, _) =>
+            sync == null ? HomeScreen(store: store) : AuthGate(store: store),
+      ),
     );
   }
 }
@@ -69,7 +73,7 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: auth.onAuthStateChange,
       builder: (context, _) {
-        if (auth.currentSession == null) return const LoginScreen();
+        if (auth.currentSession == null) return LoginScreen(store: store);
         return HomeScreen(store: store, client: Supabase.instance.client);
       },
     );
