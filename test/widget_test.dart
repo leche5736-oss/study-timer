@@ -36,7 +36,7 @@ void main() {
 
     await tester.tap(find.text('지금 끝내기'));
     await tester.pump();
-    expect(find.text('방금 배운 것 3줄'), findsOneWidget);
+    expect(find.text('떠올린 것'), findsOneWidget);
 
     await tester.tap(find.text('저장하고 조용한 휴식 시작'));
     await tester.pump();

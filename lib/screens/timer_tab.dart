@@ -219,13 +219,11 @@ class _RecallView extends StatefulWidget {
 
 class _RecallViewState extends State<_RecallView> {
   final _note = TextEditingController();
-  final _question = TextEditingController();
   int? _rating;
 
   @override
   void dispose() {
     _note.dispose();
-    _question.dispose();
     super.dispose();
   }
 
@@ -241,21 +239,13 @@ class _RecallViewState extends State<_RecallView> {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 4),
-        const Text('책을 덮고, 방금 배운 것을 보지 않고 떠올려 적어 보세요.'),
+        const Text('책을 덮고, 방금 배운 것을 보지 않고 떠올려 적어 보세요. 짧아도 괜찮아요.'),
         const SizedBox(height: 16),
         TextField(
           controller: _note,
           maxLines: 4,
           decoration: const InputDecoration(
-            labelText: '방금 배운 것 3줄',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _question,
-          decoration: const InputDecoration(
-            labelText: '스스로 낼 문제 1개',
+            labelText: '떠올린 것',
             border: OutlineInputBorder(),
           ),
         ),
@@ -279,7 +269,6 @@ class _RecallViewState extends State<_RecallView> {
           onPressed: () => widget.store.submitRecall(
             rating: _rating,
             note: _note.text.trim(),
-            question: _question.text.trim(),
           ),
           child: const Text('저장하고 조용한 휴식 시작'),
         ),
