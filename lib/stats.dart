@@ -62,8 +62,10 @@ List<SubjectTotal> totalsBySubject(
 String formatDuration(int seconds) {
   final h = seconds ~/ 3600;
   final m = (seconds % 3600) ~/ 60;
-  if (h > 0) return '$h시간 $m분';
-  return '$m분';
+  final s = seconds % 60;
+  if (h > 0) return '$h시간 $m분 $s초';
+  if (m > 0) return '$m분 $s초';
+  return '$s초';
 }
 
 String formatClock(int seconds) {

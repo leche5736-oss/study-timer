@@ -60,8 +60,9 @@ void main() {
   });
 
   test('시간 표시', () {
-    expect(formatDuration(3720), '1시간 2분');
-    expect(formatDuration(300), '5분');
+    expect(formatDuration(3723), '1시간 2분 3초');
+    expect(formatDuration(300), '5분 0초');
+    expect(formatDuration(45), '45초');
     expect(formatClock(65), '01:05');
   });
 }

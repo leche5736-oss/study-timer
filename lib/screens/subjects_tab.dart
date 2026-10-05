@@ -38,10 +38,25 @@ class SubjectsTab extends StatelessWidget {
                       );
                       if (name != null) store.renameSubject(s.id, name);
                     },
-                    trailing: IconButton(
-                      tooltip: '삭제',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _confirmDelete(context, s),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: '색 바꾸기',
+                          icon: const Icon(Icons.palette_outlined),
+                          onPressed: () async {
+                            final color = await _askColor(context, s);
+                            if (color != null) {
+                              store.setSubjectColor(s.id, color);
+                            }
+                          },
+                        ),
+                        IconButton(
+                          tooltip: '삭제',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _confirmDelete(context, s),
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -102,5 +117,36 @@ Future<String?> _askName(
         ],
       );
     },
+  );
+}
+
+Future<int?> _askColor(BuildContext context, Subject s) {
+  return showDialog<int>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text('"${s.name}" 색 고르기'),
+      content: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          for (final color in AppStore.palette)
+            InkWell(
+              key: ValueKey('color-$color'),
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.pop(c, color),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(color),
+                child: color == s.color
+                    ? const Icon(Icons.check, color: Colors.white)
+                    : null,
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소')),
+      ],
+    ),
   );
 }

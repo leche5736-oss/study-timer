@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models.dart';
 import '../services/store.dart';
 import '../services/sync.dart';
+import '../version.dart';
 import 'history_tab.dart';
 import 'rest_screen.dart';
 import 'stats_tab.dart';
@@ -60,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ];
         return Scaffold(
           appBar: AppBar(
-            title: const Text('공부 타이머'),
+            title: const Text('공부 타이머 v$appVersion'),
             actions: [
               if (_sync != null)
                 ValueListenableBuilder<String?>(

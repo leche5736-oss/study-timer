@@ -19,6 +19,13 @@ void main() {
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     expect(find.text('수학'), findsOneWidget);
+    expect(find.text('공부 타이머 v0.2.0'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('색 바꾸기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('color-${AppStore.palette[2]}')));
+    await tester.pumpAndSettle();
+    expect(store.subjects.single.color, AppStore.palette[2]);
 
     await tester.tap(find.byIcon(Icons.timer));
     await tester.pumpAndSettle();

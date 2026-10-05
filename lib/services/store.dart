@@ -126,6 +126,13 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
+  void setSubjectColor(String id, int color) {
+    final s = _subjects[id];
+    if (s == null) return;
+    _subjects[id] = s.copyWith(color: color);
+    _changed();
+  }
+
   void deleteSubject(String id) {
     final s = _subjects[id];
     if (s == null) return;

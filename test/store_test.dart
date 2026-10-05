@@ -71,4 +71,11 @@ void main() {
     expect(store.subjects, isEmpty);
     expect(store.allSubjects.single.deleted, isTrue);
   });
+
+  test('과목 색을 바꿀 수 있다', () async {
+    final store = await make();
+    final s = store.addSubject('과학');
+    store.setSubjectColor(s.id, AppStore.palette[3]);
+    expect(store.subjects.single.color, AppStore.palette[3]);
+  });
 }
