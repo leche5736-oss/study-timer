@@ -9,6 +9,7 @@ import '../services/window.dart';
 import '../version.dart';
 import 'focus_screen.dart';
 import 'history_tab.dart';
+import 'idle_drafts.dart';
 import 'mini_timer.dart';
 import 'rest_screen.dart';
 import 'settings_screen.dart';
@@ -32,6 +33,19 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   SyncService? _sync;
   bool _mini = false;
+
+  /// 시안을 타이머 탭에서 볼 때는 위아래 막대 색을 화면과 맞춥니다.
+  Color? get _chrome {
+    if (_tab != 0 || widget.store.timer.phase != Phase.idle) return null;
+    return switch (DesignDraft.value.value) {
+      1 => Colors.white,
+      2 => Colors.black,
+      3 => const Color(0xFFF2F2F7),
+      _ => null,
+    };
+  }
+
+  bool get _darkTop => _chrome == Colors.black;
 
   /// 미니 타이머는 Mac(다른 창 위에 뜸)과 웹(미리보기용)에서만.
   bool get _miniSupported => kIsWeb || AppWindow.isMac;
@@ -60,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final store = widget.store;
     return ListenableBuilder(
-      listenable: store,
+      listenable: Listenable.merge([store, DesignDraft.value]),
       builder: (context, _) {
         final phase = store.timer.phase;
         if (_mini) {
@@ -91,7 +105,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ];
         return Scaffold(
           appBar: AppBar(
-            title: const Text('공부 타이머 v$appVersion'),
+            // 시안을 보는 중이면 제목 없이 (미니멀).
+            title: DesignDraft.value.value == 0
+                ? const Text('공부 타이머 v$appVersion')
+                : null,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            backgroundColor: _chrome,
+            foregroundColor: _darkTop ? Colors.white70 : null,
             actions: [
               IconButton(
                 tooltip: '설정',
@@ -128,6 +149,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           body: SafeArea(child: tabs[_tab]),
           bottomNavigationBar: NavigationBar(
+            backgroundColor: _chrome,
+            indicatorColor: _chrome == null
+                ? null
+                : (_darkTop ? Colors.white12 : Colors.black12),
             selectedIndex: _tab,
             onDestinationSelected: (i) => setState(() => _tab = i),
             destinations: const [

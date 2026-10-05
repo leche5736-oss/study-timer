@@ -4,6 +4,7 @@ import '../models.dart';
 import '../services/notifications.dart';
 import '../services/store.dart';
 import '../stats.dart';
+import 'idle_drafts.dart';
 import 'thoughts_list.dart';
 
 class TimerTab extends StatelessWidget {
@@ -19,7 +20,17 @@ class TimerTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (store.timer.phase) {
-      Phase.idle => _IdleView(store: store, onGoToSubjects: onGoToSubjects),
+      Phase.idle => ValueListenableBuilder<int>(
+        valueListenable: DesignDraft.value,
+        builder: (context, draft, _) => store.subjects.isEmpty
+            ? _IdleView(store: store, onGoToSubjects: onGoToSubjects)
+            : switch (draft) {
+                1 => DraftA(store: store),
+                2 => DraftB(store: store),
+                3 => DraftC(store: store),
+                _ => _IdleView(store: store, onGoToSubjects: onGoToSubjects),
+              },
+      ),
       Phase.focus => const SizedBox.shrink(), // HomeScreen이 집중 화면을 보여줌
       Phase.recall => _RecallView(store: store),
       Phase.rest => const SizedBox.shrink(), // HomeScreen이 휴식 화면을 보여줌
@@ -122,6 +133,7 @@ class _IdleViewState extends State<_IdleView> {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
+        DraftPicker(store: store),
         DailyGoalCard(store: store),
         if (store.openThoughts.isNotEmpty) ...[
           const SizedBox(height: 16),
