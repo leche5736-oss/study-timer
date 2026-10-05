@@ -13,9 +13,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final store = AppStore(prefs);
-  final notifications = Notifications();
+  final notifications = Notifications.instance;
   await notifications.init();
-  store.onTimerChanged = (_, next) => notifications.sync(next);
+  store.onTimerChanged = notifications.sync;
   store.tick(); // 앱이 꺼져 있던 동안 끝난 단계 정리
   store.startTicking();
 

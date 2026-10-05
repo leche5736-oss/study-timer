@@ -6,8 +6,12 @@ import 'package:timezone/timezone.dart' as tz;
 import '../models.dart';
 
 /// 집중/휴식이 끝나는 시각에 알림을 예약합니다.
-/// 앱이 뒤에 있어도 운영체제가 알림을 띄워 줍니다.
+/// Mac/iOS 앱에서는 앱이 뒤에 있어도 운영체제가 알림을 띄워 줍니다.
+/// 웹에서는 예약 알림이 안 되므로, 페이지가 열려 있는 동안 시간이 다 되는 순간 알림을 띄웁니다.
 class Notifications {
+  Notifications._();
+  static final instance = Notifications._();
+
   static const _id = 1;
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
@@ -17,7 +21,11 @@ class Notifications {
       tzdata.initializeTimeZones();
       const darwin = DarwinInitializationSettings();
       await _plugin.initialize(
-        settings: const InitializationSettings(iOS: darwin, macOS: darwin),
+        settings: const InitializationSettings(
+          iOS: darwin,
+          macOS: darwin,
+          web: WebInitializationSettings(),
+        ),
       );
       _ready = true;
     } catch (e) {
@@ -25,18 +33,30 @@ class Notifications {
     }
   }
 
+  /// 웹 브라우저는 사용자가 버튼을 누를 때만 알림 권한을 물을 수 있어서,
+  /// 집중 시작 버튼을 누를 때 호출합니다.
+  Future<void> requestWebPermission() async {
+    if (!kIsWeb || !_ready) return;
+    try {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+            WebFlutterLocalNotificationsPlugin
+          >()
+          ?.requestNotificationsPermission();
+    } catch (e) {
+      debugPrint('알림 권한 요청 실패: $e');
+    }
+  }
+
   /// 타이머 상태가 바뀔 때마다 호출: 이전 예약을 지우고 새로 예약합니다.
-  Future<void> sync(TimerState s) async {
+  Future<void> sync(TimerState previous, TimerState s) async {
     if (!_ready) return;
+    if (kIsWeb) return _showIfTimeUp(previous, s);
     try {
       await _plugin.cancel(id: _id);
       final end = s.endsAt();
       if (end == null || !end.isAfter(DateTime.now())) return;
-      final (title, body) = switch (s.phase) {
-        Phase.focus => ('집중 끝!', '방금 배운 것을 3줄로 떠올려 적어 보세요.'),
-        Phase.rest => ('휴식 끝', '다음 집중 블록을 시작할 준비가 됐어요.'),
-        _ => (null, null),
-      };
+      final (title, body) = _message(s.phase);
       if (title == null) return;
       await _plugin.zonedSchedule(
         id: _id,
@@ -53,4 +73,27 @@ class Notifications {
       debugPrint('알림 예약 실패: $e');
     }
   }
+
+  /// 웹: 시간이 다 돼서 단계가 넘어간 경우에만 바로 알림을 띄웁니다.
+  Future<void> _showIfTimeUp(TimerState previous, TimerState s) async {
+    final timeUp =
+        previous.isRunning &&
+        previous.remainingSec(DateTime.now().toUtc()) <= 0 &&
+        previous.phase != s.phase;
+    if (!timeUp) return;
+    final (title, body) = _message(previous.phase);
+    if (title == null) return;
+    try {
+      await _plugin.show(id: _id, title: title, body: body);
+    } catch (e) {
+      debugPrint('알림 표시 실패: $e');
+    }
+  }
+
+  static (String?, String?) _message(Phase endingPhase) =>
+      switch (endingPhase) {
+        Phase.focus => ('집중 끝!', '책을 덮고 방금 배운 것을 떠올려 적어 보세요.'),
+        Phase.rest => ('휴식 끝', '다음 집중 블록을 시작할 준비가 됐어요.'),
+        _ => (null, null),
+      };
 }

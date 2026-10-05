@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../services/notifications.dart';
 import '../services/store.dart';
 import '../stats.dart';
 
@@ -107,7 +108,10 @@ class _IdleViewState extends State<_IdleView> {
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
           icon: const Icon(Icons.play_arrow),
           label: Text(blocks == 0 ? '집중 시작' : '다음 블록 시작'),
-          onPressed: () => store.startFocus(selected, _preset),
+          onPressed: () {
+            Notifications.instance.requestWebPermission();
+            store.startFocus(selected, _preset);
+          },
         ),
       ],
     );

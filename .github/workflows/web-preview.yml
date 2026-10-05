@@ -1,0 +1,37 @@
+# 코드를 올릴 때마다 테스트하고, 웹 버전을 만들어 GitHub Pages(gh-pages 브랜치)에 올립니다.
+# 주소: https://leche5736-oss.github.io/study-timer/
+name: 웹 미리보기
+
+on:
+  push:
+    branches: [main, claude/project-thread-0xriid]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: web-preview
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --no-web-resources-cdn --base-href /study-timer/
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "웹 미리보기 ${{ github.sha }}"
