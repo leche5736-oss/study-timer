@@ -10,20 +10,17 @@ class TimerTab extends StatelessWidget {
   final AppStore store;
   final VoidCallback onGoToSubjects;
 
-  /// 미니 타이머로 바꾸기. 지원하지 않는 기기면 null.
-  final VoidCallback? onMini;
   const TimerTab({
     super.key,
     required this.store,
     required this.onGoToSubjects,
-    this.onMini,
   });
 
   @override
   Widget build(BuildContext context) {
     return switch (store.timer.phase) {
       Phase.idle => _IdleView(store: store, onGoToSubjects: onGoToSubjects),
-      Phase.focus => _FocusView(store: store, onMini: onMini),
+      Phase.focus => const SizedBox.shrink(), // HomeScreen이 집중 화면을 보여줌
       Phase.recall => _RecallView(store: store),
       Phase.rest => const SizedBox.shrink(), // HomeScreen이 휴식 화면을 보여줌
     };
@@ -217,164 +214,6 @@ class _IdleViewState extends State<_IdleView> {
         ),
       ],
     );
-  }
-}
-
-class _FocusView extends StatefulWidget {
-  final AppStore store;
-  final VoidCallback? onMini;
-  const _FocusView({required this.store, this.onMini});
-
-  @override
-  State<_FocusView> createState() => _FocusViewState();
-}
-
-class _FocusViewState extends State<_FocusView> {
-  final _thought = TextEditingController();
-  final _thoughtFocus = FocusNode();
-
-  AppStore get store => widget.store;
-
-  @override
-  void dispose() {
-    _thought.dispose();
-    _thoughtFocus.dispose();
-    super.dispose();
-  }
-
-  void _addThought() {
-    store.addThought(_thought.text);
-    _thought.clear();
-    _thoughtFocus.requestFocus();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = store.timer;
-    final now = store.now;
-    final subject = store.subject(t.subjectId);
-    final shown = t.stopwatch ? t.elapsedSec(now) : t.remainingSec(now);
-    final progress = t.durationSec == 0
-        ? 0.0
-        : t.elapsedSec(now) / t.durationSec;
-    final small = Theme.of(context).textTheme.bodySmall;
-    final since = t.sessionStartedAt;
-    final thoughtsThisBlock = since == null
-        ? 0
-        : store.thoughts.where((n) => !n.createdAt.isBefore(since)).length;
-
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${t.stopwatch ? '스톱워치' : '집중 중'} · ${subject?.name ?? ''}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                formatClock(shown),
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (!t.stopwatch)
-                LinearProgressIndicator(value: progress.clamp(0, 1)),
-              const SizedBox(height: 8),
-              Text(t.isRunning ? '휴대폰은 잠시 멀리 두세요.' : '일시정지됨', style: small),
-              if (t.distractions > 0) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '이번 블록 딴짓 ${t.distractions}회'
-                  '${t.distractedSec > 0 ? ' · ${formatDuration(t.distractedSec)}' : ''}',
-                  style: small?.copyWith(color: Colors.red),
-                ),
-              ],
-              const SizedBox(height: 32),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: [
-                  if (t.isRunning)
-                    OutlinedButton.icon(
-                      onPressed: store.pause,
-                      icon: const Icon(Icons.pause),
-                      label: const Text('일시정지'),
-                    )
-                  else
-                    FilledButton.icon(
-                      onPressed: store.resume,
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('계속'),
-                    ),
-                  OutlinedButton.icon(
-                    onPressed: store.finishFocus,
-                    icon: const Icon(Icons.flag),
-                    label: Text(t.stopwatch ? '끝내기' : '지금 끝내기'),
-                  ),
-                  if (widget.onMini != null)
-                    OutlinedButton.icon(
-                      onPressed: widget.onMini,
-                      icon: const Icon(Icons.picture_in_picture_alt),
-                      label: const Text('미니 타이머'),
-                    ),
-                  TextButton(
-                    onPressed: () => _confirmCancel(context),
-                    child: const Text('취소 (기록 안 함)'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _thought,
-                focusNode: _thoughtFocus,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _addThought(),
-                decoration: InputDecoration(
-                  labelText: '딴생각 메모',
-                  hintText: '떠오른 할 일·걱정을 한 줄 적고 Enter',
-                  helperText: thoughtsThisBlock == 0
-                      ? '적어 두면 휴식 때 다시 보여 드려요. 지금은 공부로 돌아가세요.'
-                      : '이번 블록 $thoughtsThisBlock개 적음 · 휴식 때 보여 드려요',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    tooltip: '메모 저장',
-                    icon: const Icon(Icons.add),
-                    onPressed: _addThought,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirmCancel(BuildContext context) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('이 블록을 기록하지 않고 취소할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('아니요'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('취소하기'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) store.cancel();
   }
 }
 

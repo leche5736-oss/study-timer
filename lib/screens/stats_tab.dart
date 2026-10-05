@@ -184,13 +184,13 @@ class _StatsTabState extends State<StatsTab> {
     final hours = sec / 3600;
     if (sec == 0) return Colors.transparent;
     final base = theme.colorScheme.primary;
-    final level = hours >= 7
+    final level = hours >= 8
         ? 0.9
-        : hours >= 5
+        : hours >= 6
         ? 0.65
-        : hours >= 3
+        : hours >= 4
         ? 0.45
-        : hours >= 1
+        : hours >= 2
         ? 0.28
         : 0.14;
     return base.withValues(alpha: level);
@@ -297,10 +297,10 @@ class _StatsTabState extends State<StatsTab> {
         Row(
           children: [
             for (final (label, sec) in [
-              ('1시간+', 3600),
-              ('3+', 3 * 3600),
-              ('5+', 5 * 3600),
-              ('7+', 7 * 3600),
+              ('2시간+', 2 * 3600),
+              ('4+', 4 * 3600),
+              ('6+', 6 * 3600),
+              ('8+', 8 * 3600),
             ])
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

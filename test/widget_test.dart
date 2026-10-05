@@ -22,7 +22,7 @@ void main() {
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     expect(find.text('수학'), findsOneWidget);
-    expect(find.text('공부 타이머 v0.5.0'), findsOneWidget);
+    expect(find.text('공부 타이머 v0.5.1'), findsOneWidget);
 
     await tester.tap(find.byTooltip('색 바꾸기'));
     await tester.pumpAndSettle();
@@ -36,6 +36,10 @@ void main() {
     await tester.pump();
     expect(find.textContaining('집중 중'), findsOneWidget);
     expect(find.text('25:00'), findsOneWidget);
+    expect(find.text('화면을 누르면 버튼이 나와요'), findsOneWidget);
+    await tester.tap(find.text('25:00')); // 숨은 버튼 보이기
+    await tester.pump();
+    expect(find.text('화면을 누르면 버튼이 나와요'), findsNothing);
 
     await tester.enterText(find.widgetWithText(TextField, '딴생각 메모'), '택배 찾기');
     await tester.testTextInput.receiveAction(TextInputAction.done);

@@ -7,6 +7,7 @@ import '../services/store.dart';
 import '../services/sync.dart';
 import '../services/window.dart';
 import '../version.dart';
+import 'focus_screen.dart';
 import 'history_tab.dart';
 import 'mini_timer.dart';
 import 'rest_screen.dart';
@@ -71,12 +72,18 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         // 휴식 중에는 화면 전체를 조용한 휴식 화면으로 바꿉니다.
         if (phase == Phase.rest) return RestScreen(store: store);
+        // 집중 중에는 어두운 화면에 시간만 보여줍니다.
+        if (phase == Phase.focus) {
+          return FocusScreen(
+            store: store,
+            onMini: _miniSupported ? () => _setMini(true) : null,
+          );
+        }
 
         final tabs = [
           TimerTab(
             store: store,
             onGoToSubjects: () => setState(() => _tab = 1),
-            onMini: _miniSupported ? () => _setMini(true) : null,
           ),
           SubjectsTab(store: store),
           StatsTab(store: store),
