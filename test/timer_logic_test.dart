@@ -1,0 +1,94 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:study_timer/models.dart';
+import 'package:study_timer/timer_logic.dart';
+
+void main() {
+  final t0 = DateTime.utc(2026, 10, 5, 9);
+  DateTime at(int sec) => t0.add(Duration(seconds: sec));
+
+  TimerState started() => TimerLogic.startFocus(
+    TimerState.initial(),
+    subjectId: 'math',
+    presetIndex: 0,
+    sessionId: 's1',
+    now: t0,
+  );
+
+  test('집중 시작 후 남은 시간은 시작 시각 기준으로 계산된다', () {
+    final s = started();
+    expect(s.phase, Phase.focus);
+    expect(s.remainingSec(at(60)), 25 * 60 - 60);
+  });
+
+  test('일시정지 동안은 시간이 흐르지 않는다', () {
+    var s = TimerLogic.pause(started(), at(100));
+    expect(s.remainingSec(at(1000)), 25 * 60 - 100);
+    s = TimerLogic.resume(s, at(1000));
+    expect(s.remainingSec(at(1010)), 25 * 60 - 110);
+  });
+
+  test('시간이 다 되면 회상 단계로 넘어가고 전체 시간이 기록된다', () {
+    final s = TimerLogic.tick(started(), at(25 * 60 + 5));
+    expect(s.phase, Phase.recall);
+    expect(s.completedFocusSec, 25 * 60);
+  });
+
+  test('일찍 끝내면 실제 집중한 시간만 기록된다', () {
+    final s = TimerLogic.finishFocus(started(), at(600));
+    expect(s.completedFocusSec, 600);
+  });
+
+  test('회상 메모 저장 시 기록이 생기고 휴식이 시작된다', () {
+    final recall = TimerLogic.finishFocus(started(), at(25 * 60));
+    final (session, rest) = TimerLogic.submitRecall(
+      recall,
+      now: at(25 * 60 + 30),
+      focusRating: 4,
+      recallNote: 'a',
+      question: 'q',
+    );
+    expect(session.id, 's1');
+    expect(session.subjectId, 'math');
+    expect(session.focusSeconds, 25 * 60);
+    expect(session.focusRating, 4);
+    expect(rest.phase, Phase.rest);
+    expect(rest.durationSec, 5 * 60);
+    expect(rest.blocksDone, 1);
+  });
+
+  test('4번째 블록 뒤에는 긴 휴식', () {
+    var s = TimerState.initial();
+    late TimerState rest;
+    for (var i = 0; i < 4; i++) {
+      s = TimerLogic.startFocus(
+        s,
+        subjectId: 'm',
+        presetIndex: 0,
+        sessionId: 's$i',
+        now: t0,
+      );
+      s = TimerLogic.finishFocus(s, at(10));
+      (_, rest) = TimerLogic.submitRecall(s, now: at(20));
+      s = TimerLogic.toIdle(rest, at(30));
+    }
+    expect(rest.longRest, isTrue);
+    expect(rest.durationSec, 15 * 60);
+  });
+
+  test('휴식이 끝나면 대기 상태로 돌아가고 과목은 유지된다', () {
+    final recall = TimerLogic.finishFocus(started(), at(60));
+    final (_, rest) = TimerLogic.submitRecall(recall, now: at(60));
+    final idle = TimerLogic.tick(rest, at(60 + 5 * 60));
+    expect(idle.phase, Phase.idle);
+    expect(idle.subjectId, 'math');
+  });
+
+  test('JSON으로 저장했다 불러와도 같다', () {
+    final s = TimerLogic.pause(started(), at(42));
+    final back = TimerState.fromJson(s.toJson());
+    expect(back.phase, s.phase);
+    expect(back.accumulatedSec, 42);
+    expect(back.isRunning, isFalse);
+    expect(back.updatedAt, s.updatedAt);
+  });
+}
