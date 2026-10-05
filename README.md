@@ -19,67 +19,36 @@
 
 ---
 
-## Mac에서 실행하기 (처음 한 번만 준비)
+## Mac에 설치하기
 
-아래 명령은 Mac의 **터미널** 앱(Spotlight에서 "터미널" 검색)에 한 줄씩 붙여 넣고 Enter를 누르면 됩니다.
-
-### 1. Xcode 설치
-1. App Store에서 **Xcode**를 설치합니다 (용량이 커서 오래 걸립니다).
-2. Xcode를 한 번 열어 약관에 동의하고, iOS 구성요소를 설치하라고 하면 설치합니다.
-3. 터미널에서:
+1. App Store에서 **Xcode**를 설치하고, 한 번 열어서 약관에 동의합니다 (용량이 커서 오래 걸립니다).
+2. **터미널** 앱(Spotlight에서 "터미널" 검색)을 열고 아래 한 줄을 붙여 넣은 뒤 Enter:
    ```bash
-   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
-   sudo xcodebuild -runFirstLaunch
+   cd ~ && (git clone -b claude/project-thread-0xriid https://github.com/leche5736-oss/study-timer.git 2>/dev/null || true) && cd study-timer && git pull && ./scripts/install_mac.sh
    ```
-   (비밀번호를 물으면 Mac 로그인 비밀번호를 입력합니다. 입력해도 화면에 안 보이는 게 정상입니다.)
 
-### 2. Homebrew와 Flutter 설치
-Homebrew는 개발 도구를 쉽게 설치하게 해 주는 프로그램입니다.
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-설치가 끝나면 화면에 "Next steps"로 나오는 두 줄 명령(`echo ... >> ~/.zprofile` 와 `eval ...`)을 그대로 복사해 실행합니다. 그다음:
-```bash
-brew install --cask flutter
-brew install cocoapods
-flutter doctor
-```
-`flutter doctor`에서 Xcode와 Flutter 옆에 체크(✓)가 나오면 준비 완료입니다. Android 관련 경고는 무시해도 됩니다.
+스크립트가 필요한 도구(Homebrew, Flutter)를 설치하고 앱을 빌드해서 **응용 프로그램** 폴더에 "공부 타이머"로 넣어 줍니다. 처음에는 꽤 오래 걸리고, 중간에 Mac 비밀번호를 물으면 입력하면 됩니다(입력해도 화면에 안 보이는 게 정상입니다). 그다음부터는 Launchpad에서 일반 앱처럼 열면 됩니다. Mac 앱은 7일 제한이 없습니다.
 
-### 3. 코드 내려받기
-```bash
-cd ~
-git clone https://github.com/leche5736-oss/study-timer.git
-cd study-timer
-```
-(아직 PR이 합쳐지기 전이라면 두 번째 줄 대신
-`git clone -b claude/project-thread-0xriid https://github.com/leche5736-oss/study-timer.git` 를 씁니다.)
-
-### 4. Mac 앱으로 실행
-```bash
-flutter pub get
-flutter run -d macos
-```
-처음 빌드는 몇 분 걸립니다. 창이 뜨고 알림 허용을 물으면 **허용**을 누르세요.
-끝내려면 터미널에서 `q`를 누릅니다.
+새 버전이 나오면 같은 한 줄을 다시 실행하면 됩니다.
 
 ---
 
-## iPhone / iPad에 설치하기 (무료 Apple ID)
+## iPhone / iPad에 설치하기 (필요할 때만)
 
+처음 한 번만:
 1. iPhone을 케이블로 Mac에 연결하고, 폰에 "이 컴퓨터를 신뢰하겠습니까?"가 뜨면 **신뢰**.
 2. 폰에서 **설정 > 개인정보 보호 및 보안 > 개발자 모드**를 켜고 재시동합니다.
-3. 터미널에서 `open ios/Runner.xcworkspace` 로 Xcode를 엽니다.
+3. 터미널에서 `open ~/study-timer/ios/Runner.xcworkspace` 로 Xcode를 엽니다.
    왼쪽에서 **Runner** 선택 > **Signing & Capabilities** 탭 > **Team**에서 *Add an Account…* 로 Apple ID를 추가하고 *(Personal Team)* 을 고릅니다.
    "bundle identifier를 쓸 수 없다"는 오류가 나면 Bundle Identifier 끝에 아무 글자나 붙여(예: `com.leche5736.studyTimer2`) 바꿉니다.
-4. 터미널로 돌아와서:
-   ```bash
-   flutter run --release
-   ```
-   기기 목록이 나오면 iPhone 번호를 고릅니다.
-5. 폰에서 "신뢰하지 않는 개발자" 경고가 나오면 **설정 > 일반 > VPN 및 기기 관리**에서 내 Apple ID를 **신뢰**합니다.
 
-무료 Apple ID로 설치한 앱은 **7일 뒤 열리지 않습니다.** 그때 4번 명령을 다시 실행하면 됩니다. iPad도 같은 방법입니다.
+설치 (7일마다 반복):
+```bash
+~/study-timer/scripts/install_iphone.sh
+```
+처음 설치 후 폰에서 "신뢰하지 않는 개발자" 경고가 나오면 **설정 > 일반 > VPN 및 기기 관리**에서 내 Apple ID를 **신뢰**합니다.
+
+무료 Apple ID로 설치한 앱은 **7일 뒤 열리지 않습니다.** 그때 폰을 연결하고 위 명령을 다시 실행하면 됩니다. iPad도 같은 방법입니다.
 
 ---
 
