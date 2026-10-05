@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models.dart';
 import '../services/store.dart';
 import '../stats.dart';
 
@@ -30,72 +31,101 @@ class _RestScreenState extends State<RestScreen>
   @override
   Widget build(BuildContext context) {
     final t = widget.store.timer;
+    final restType = RestType.byName(
+      widget.store.session(t.lastSessionId)?.restType,
+    );
     const dim = Color(0xFF8A8F98);
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                t.longRest ? '긴 휴식' : '조용한 휴식',
-                style: const TextStyle(color: dim, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                formatClock(t.remainingSec(widget.store.now)),
-                style: const TextStyle(color: dim, fontSize: 40),
-              ),
-              const SizedBox(height: 40),
-              AnimatedBuilder(
-                animation: _breath,
-                builder: (context, _) {
-                  final v = _breath.value;
-                  final inhale = v < 0.4;
-                  final size = inhale
-                      ? 80 + 120 * Curves.easeInOut.transform(v / 0.4)
-                      : 200 - 120 * Curves.easeInOut.transform((v - 0.4) / 0.6);
-                  return Column(
-                    children: [
-                      SizedBox(
-                        width: 220,
-                        height: 220,
-                        child: Center(
-                          child: Container(
-                            width: size,
-                            height: size,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF1E3A5F),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  t.longRest ? '긴 휴식' : '조용한 휴식',
+                  style: const TextStyle(color: dim, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  formatClock(t.remainingSec(widget.store.now)),
+                  style: const TextStyle(color: dim, fontSize: 40),
+                ),
+                const SizedBox(height: 40),
+                AnimatedBuilder(
+                  animation: _breath,
+                  builder: (context, _) {
+                    final v = _breath.value;
+                    final inhale = v < 0.4;
+                    final size = inhale
+                        ? 80 + 120 * Curves.easeInOut.transform(v / 0.4)
+                        : 200 -
+                              120 * Curves.easeInOut.transform((v - 0.4) / 0.6);
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: Center(
+                            child: Container(
+                              width: size,
+                              height: size,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF1E3A5F),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        inhale ? '들이쉬기' : '내쉬기',
-                        style: const TextStyle(color: dim, fontSize: 16),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 40),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  '눈을 감고 조용히 쉬세요.\n휴대폰, 영상, SNS는 잠시 멀리 두는 게 기억에 좋아요.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: dim),
+                        const SizedBox(height: 16),
+                        Text(
+                          inhale ? '들이쉬기' : '내쉬기',
+                          style: const TextStyle(color: dim, fontSize: 16),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(height: 32),
-              TextButton(
-                onPressed: widget.store.skipRest,
-                child: const Text('휴식 건너뛰기', style: TextStyle(color: dim)),
-              ),
-            ],
+                const SizedBox(height: 40),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    '눈을 감고 조용히 쉬세요.\n휴대폰, 영상, SNS는 잠시 멀리 두는 게 기억에 좋아요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: dim),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Text(
+                  '휴식 중 한 일 (선택, 통계에서 다음 블록 집중도와 비교해요)',
+                  style: TextStyle(color: dim, fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final type in RestType.values)
+                      ChoiceChip(
+                        label: Text(type.label),
+                        selected: restType == type,
+                        onSelected: (_) => widget.store.setRestType(type),
+                        backgroundColor: const Color(0xFF15181D),
+                        selectedColor: const Color(0xFF1E3A5F),
+                        labelStyle: const TextStyle(color: dim),
+                        side: const BorderSide(color: Color(0xFF2A2F37)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                TextButton(
+                  onPressed: widget.store.skipRest,
+                  child: const Text('휴식 건너뛰기', style: TextStyle(color: dim)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

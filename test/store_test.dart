@@ -25,7 +25,7 @@ void main() {
     clock = clock.add(const Duration(minutes: 26));
     store.tick();
     expect(store.timer.phase, Phase.recall);
-    store.submitRecall(rating: 5, note: '미분 정의', question: '도함수란?');
+    store.submitRecall(rating: 5, note: '미분 정의');
     expect(store.timer.phase, Phase.rest);
     expect(localChanges, greaterThan(0));
 
@@ -77,5 +77,52 @@ void main() {
     final s = store.addSubject('과학');
     store.setSubjectColor(s.id, AppStore.palette[3]);
     expect(store.subjects.single.color, AppStore.palette[3]);
+  });
+
+  test('기록을 직접 추가하고 고칠 수 있다', () async {
+    final store = await make();
+    final math = store.addSubject('수학');
+    final added = store.saveSession(
+      subjectId: math.id,
+      startedAt: DateTime.utc(2026, 10, 4, 9),
+      focusSeconds: 3000,
+      focusRating: 3,
+    );
+    expect(store.sessions.single.endedAt, DateTime.utc(2026, 10, 4, 9, 50));
+    store.saveSession(
+      id: added.id,
+      subjectId: math.id,
+      startedAt: DateTime.utc(2026, 10, 4, 10),
+      focusSeconds: 1234,
+      recallNote: '고침',
+    );
+    final s = store.sessions.single;
+    expect(s.focusSeconds, 1234);
+    expect(s.recallNote, '고침');
+    expect(s.focusRating, isNull);
+  });
+
+  test('휴식 중 한 일이 방금 끝낸 블록에 기록된다', () async {
+    final store = await make();
+    final math = store.addSubject('수학');
+    store.startFocus(math.id, 0);
+    store.finishFocus();
+    store.submitRecall();
+    store.setRestType(RestType.walk);
+    expect(store.sessions.single.restType, 'walk');
+  });
+
+  test('설정이 저장되고 직접 설정 길이가 타이머에 쓰인다', () async {
+    final store = await make();
+    store.updateSettings(
+      store.settings.copyWith(customFocusMin: 35, dailyGoalMin: 120),
+    );
+    final math = store.addSubject('수학');
+    store.startFocus(math.id, customPresetIndex);
+    expect(store.timer.durationSec, 35 * 60);
+    await Future<void>.delayed(Duration.zero);
+    final reopened = await make();
+    expect(reopened.settings.dailyGoalMin, 120);
+    expect(reopened.settings.customFocusMin, 35);
   });
 }

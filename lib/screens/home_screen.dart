@@ -7,6 +7,7 @@ import '../services/sync.dart';
 import '../version.dart';
 import 'history_tab.dart';
 import 'rest_screen.dart';
+import 'settings_screen.dart';
 import 'stats_tab.dart';
 import 'subjects_tab.dart';
 import 'timer_tab.dart';
@@ -63,6 +64,16 @@ class _HomeScreenState extends State<HomeScreen> {
           appBar: AppBar(
             title: const Text('공부 타이머 v$appVersion'),
             actions: [
+              IconButton(
+                tooltip: '설정',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SettingsScreen(store: store),
+                  ),
+                ),
+              ),
               if (_sync != null)
                 ValueListenableBuilder<String?>(
                   valueListenable: _sync!.lastError,

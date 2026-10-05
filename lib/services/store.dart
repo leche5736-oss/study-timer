@@ -16,6 +16,7 @@ class AppStore extends ChangeNotifier {
   static const _kSubjects = 'subjects';
   static const _kSessions = 'sessions';
   static const _kTimer = 'timer';
+  static const _kSettings = 'settings';
 
   final SharedPreferences _prefs;
   final DateTime Function() _clock;
@@ -23,6 +24,7 @@ class AppStore extends ChangeNotifier {
   final Map<String, Subject> _subjects = {};
   final Map<String, StudySession> _sessions = {};
   TimerState _timer = TimerState.initial();
+  Settings _settings = const Settings();
 
   /// 사용자가 이 기기에서 무언가 바꿨을 때 호출됩니다.
   void Function()? onLocalChange;
@@ -55,6 +57,10 @@ class AppStore extends ChangeNotifier {
 
   TimerState get timer => _timer;
 
+  Settings get settings => _settings;
+
+  StudySession? session(String? id) => id == null ? null : _sessions[id];
+
   void _load() {
     final subj = _prefs.getString(_kSubjects);
     if (subj != null) {
@@ -69,6 +75,10 @@ class AppStore extends ChangeNotifier {
         final s = StudySession.fromJson(j as Map<String, dynamic>);
         _sessions[s.id] = s;
       }
+    }
+    final st = _prefs.getString(_kSettings);
+    if (st != null) {
+      _settings = Settings.fromJson(jsonDecode(st) as Map<String, dynamic>);
     }
     final t = _prefs.getString(_kTimer);
     if (t != null) {
@@ -86,6 +96,7 @@ class AppStore extends ChangeNotifier {
       jsonEncode(_sessions.values.map((s) => s.toJson()).toList()),
     );
     await _prefs.setString(_kTimer, jsonEncode(_timer.toJson()));
+    await _prefs.setString(_kSettings, jsonEncode(_settings.toJson()));
   }
 
   void _changed({bool local = true}) {
@@ -140,6 +151,48 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
+  /// 기록을 직접 추가하거나 고칩니다. [id]가 없으면 새 기록.
+  StudySession saveSession({
+    String? id,
+    required String subjectId,
+    required DateTime startedAt,
+    required int focusSeconds,
+    int? focusRating,
+    String recallNote = '',
+  }) {
+    final old = id == null ? null : _sessions[id];
+    final start = startedAt.toUtc();
+    final s = StudySession(
+      id: id ?? _uuid.v4(),
+      subjectId: subjectId,
+      startedAt: start,
+      endedAt: start.add(Duration(seconds: focusSeconds)),
+      plannedMinutes: old?.plannedMinutes ?? 0,
+      focusSeconds: focusSeconds,
+      focusRating: focusRating,
+      recallNote: recallNote,
+      question: old?.question ?? '',
+      restType: old?.restType,
+      updatedAt: now,
+    );
+    _sessions[s.id] = s;
+    _changed();
+    return s;
+  }
+
+  /// 휴식 중 한 일을 방금 끝낸 블록에 적어 둡니다.
+  void setRestType(RestType type) {
+    final s = _sessions[_timer.lastSessionId];
+    if (s == null) return;
+    _sessions[s.id] = s.copyWith(restType: type.name);
+    _changed();
+  }
+
+  void updateSettings(Settings settings) {
+    _settings = settings;
+    _changed(local: false);
+  }
+
   void deleteSession(String id) {
     final s = _sessions[id];
     if (s == null) return;
@@ -156,13 +209,19 @@ class AppStore extends ChangeNotifier {
     _changed(local: local);
   }
 
-  void startFocus(String subjectId, int presetIndex) => _setTimer(
+  void startFocus(
+    String subjectId,
+    int presetIndex, {
+    bool stopwatch = false,
+  }) => _setTimer(
     TimerLogic.startFocus(
       _timer,
       subjectId: subjectId,
       presetIndex: presetIndex,
+      preset: _settings.presetAt(presetIndex),
       sessionId: _uuid.v4(),
       now: now,
+      stopwatch: stopwatch,
     ),
   );
 
@@ -172,13 +231,12 @@ class AppStore extends ChangeNotifier {
   void cancel() => _setTimer(TimerLogic.toIdle(_timer, now));
   void skipRest() => _setTimer(TimerLogic.toIdle(_timer, now));
 
-  void submitRecall({int? rating, String note = '', String question = ''}) {
+  void submitRecall({int? rating, String note = ''}) {
     final (session, next) = TimerLogic.submitRecall(
       _timer,
       now: now,
       focusRating: rating,
       recallNote: note,
-      question: question,
     );
     _sessions[session.id] = session;
     _setTimer(next);

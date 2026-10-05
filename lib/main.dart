@@ -8,6 +8,7 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/notifications.dart';
 import 'services/store.dart';
+import 'services/window.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +16,13 @@ Future<void> main() async {
   final store = AppStore(prefs);
   final notifications = Notifications.instance;
   await notifications.init();
-  store.onTimerChanged = notifications.sync;
+  notifications.sound = store.settings.sound;
+  store.onTimerChanged = (previous, next) {
+    notifications.sync(previous, next);
+    if (store.settings.bringToFront && Notifications.isTimeUp(previous, next)) {
+      AppWindow.bringToFront();
+    }
+  };
   store.tick(); // 앱이 꺼져 있던 동안 끝난 단계 정리
   store.startTicking();
 

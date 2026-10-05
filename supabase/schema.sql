@@ -63,3 +63,6 @@ create trigger sessions_keep_newer before update on public.sessions
   for each row execute function public.keep_newer();
 create trigger timer_keep_newer before update on public.timer_state
   for each row execute function public.keep_newer();
+
+-- 0.4.0: 휴식 중 한 일 (이미 테이블을 만들었다면 이 줄만 다시 실행해도 됩니다)
+alter table public.sessions add column if not exists rest_type text;

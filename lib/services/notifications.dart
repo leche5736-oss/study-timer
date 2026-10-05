@@ -13,6 +13,9 @@ class Notifications {
   static final instance = Notifications._();
 
   static const _id = 1;
+
+  /// 알림 소리. 설정 화면에서 바꿉니다.
+  bool sound = true;
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
@@ -61,9 +64,9 @@ class Notifications {
       await _plugin.zonedSchedule(
         id: _id,
         scheduledDate: tz.TZDateTime.from(end, tz.UTC),
-        notificationDetails: const NotificationDetails(
-          iOS: DarwinNotificationDetails(),
-          macOS: DarwinNotificationDetails(),
+        notificationDetails: NotificationDetails(
+          iOS: DarwinNotificationDetails(presentSound: sound),
+          macOS: DarwinNotificationDetails(presentSound: sound),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         title: title,
@@ -74,13 +77,17 @@ class Notifications {
     }
   }
 
+  /// 시간이 다 돼서 단계가 넘어갔는지 (사용자가 버튼을 눌러 넘긴 게 아니라).
+  static bool isTimeUp(TimerState previous, TimerState next) {
+    final end = previous.endsAt();
+    return end != null &&
+        !DateTime.now().toUtc().isBefore(end) &&
+        previous.phase != next.phase;
+  }
+
   /// 웹: 시간이 다 돼서 단계가 넘어간 경우에만 바로 알림을 띄웁니다.
   Future<void> _showIfTimeUp(TimerState previous, TimerState s) async {
-    final timeUp =
-        previous.isRunning &&
-        previous.remainingSec(DateTime.now().toUtc()) <= 0 &&
-        previous.phase != s.phase;
-    if (!timeUp) return;
+    if (!isTimeUp(previous, s)) return;
     final (title, body) = _message(previous.phase);
     if (title == null) return;
     try {
