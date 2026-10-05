@@ -22,7 +22,7 @@ void main() {
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     expect(find.text('수학'), findsOneWidget);
-    expect(find.text('공부 타이머 v0.6.0'), findsOneWidget);
+    expect(find.text('공부 타이머 v0.7.0'), findsOneWidget);
 
     await tester.tap(find.byTooltip('색 바꾸기'));
     await tester.pumpAndSettle();

@@ -96,14 +96,19 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (v) =>
                       store.updateSettings(s.copyWith(bringToFront: v)),
                 ),
-              if (isMac)
+              if (isMac) ...[
                 SwitchListTile(
-                  title: const Text('메뉴 막대에 남은 시간 표시'),
-                  subtitle: const Text('화면 맨 위 메뉴 막대에서 창을 열지 않고 시간을 봐요'),
+                  title: const Text('메뉴 막대에 항상 표시'),
+                  subtitle: const Text(
+                    '화면 맨 위에 오늘 공부 시간(공부 중에는 남은 시간)이 보이고, '
+                    '눌러서 바로 시작할 수 있어요',
+                  ),
                   value: s.menuBar,
                   onChanged: (v) =>
                       store.updateSettings(s.copyWith(menuBar: v)),
                 ),
+                const _LaunchAtLoginTile(),
+              ],
               if (isMac) ...[
                 const _Header('딴짓 앱 감지'),
                 SwitchListTile(
@@ -323,6 +328,55 @@ extension on SettingsScreen {
       s.copyWith(blockedApps: {...s.blockedApps, ...picked}.toList()),
     );
   }
+}
+
+/// 로그인할 때 자동 실행. 값은 macOS가 들고 있어서 직접 물어봅니다.
+class _LaunchAtLoginTile extends StatefulWidget {
+  const _LaunchAtLoginTile();
+
+  @override
+  State<_LaunchAtLoginTile> createState() => _LaunchAtLoginTileState();
+}
+
+class _LaunchAtLoginTileState extends State<_LaunchAtLoginTile> {
+  bool? _on;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    AppWindow.launchAtLogin().then((v) {
+      if (mounted) setState(() => _on = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    title: const Text('Mac을 켤 때 자동 실행'),
+    subtitle: Text(
+      _error ?? '로그인하면 앱이 켜져서 메뉴 막대에 바로 보여요 (macOS 13 이상)',
+      style: _error == null ? null : const TextStyle(color: Colors.red),
+    ),
+    value: _on ?? false,
+    onChanged: _on == null
+        ? null
+        : (v) async {
+            setState(() {
+              _on = v;
+              _error = null;
+            });
+            try {
+              await AppWindow.setLaunchAtLogin(v);
+            } catch (e) {
+              if (mounted) {
+                setState(() {
+                  _on = !v;
+                  _error = '바꾸지 못했어요: $e';
+                });
+              }
+            }
+          },
+  );
 }
 
 class _Header extends StatelessWidget {

@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import ServiceManagement
 
 class MainFlutterWindow: NSWindow {
   private var channel: FlutterMethodChannel?
@@ -33,6 +34,30 @@ class MainFlutterWindow: NSWindow {
       case "setStatus":
         self.setStatus(call.arguments as? String)
         result(nil)
+      case "setStatusMenu":
+        self.setStatusMenu(call.arguments as? [[String: Any]] ?? [])
+        result(nil)
+      case "getLaunchAtLogin":
+        if #available(macOS 13.0, *) {
+          result(SMAppService.mainApp.status == .enabled)
+        } else {
+          result(false)
+        }
+      case "setLaunchAtLogin":
+        if #available(macOS 13.0, *) {
+          do {
+            if (call.arguments as? Bool) == true {
+              try SMAppService.mainApp.register()
+            } else {
+              try SMAppService.mainApp.unregister()
+            }
+            result(nil)
+          } catch {
+            result(FlutterError(code: "login", message: error.localizedDescription, details: nil))
+          }
+        } else {
+          result(FlutterError(code: "login", message: "macOS 13 이상에서만 돼요", details: nil))
+        }
       case "setMini":
         self.setMini((call.arguments as? Bool) ?? false)
         result(nil)
@@ -85,6 +110,40 @@ class MainFlutterWindow: NSWindow {
   @objc private func statusClicked() {
     NSApp.activate(ignoringOtherApps: true)
     self.makeKeyAndOrderFront(nil)
+  }
+
+  /// 메뉴 막대를 눌렀을 때 나오는 메뉴. 항목마다 id를 Flutter에 돌려줍니다.
+  /// 항목: {"id": String, "title": String, "enabled": Bool} 또는 {"separator": true}
+  private func setStatusMenu(_ items: [[String: Any]]) {
+    guard let item = statusItem else { return }
+    let menu = NSMenu()
+    menu.autoenablesItems = false
+    for spec in items {
+      if spec["separator"] as? Bool == true {
+        menu.addItem(NSMenuItem.separator())
+        continue
+      }
+      let mi = NSMenuItem(
+        title: spec["title"] as? String ?? "", action: #selector(menuClicked(_:)),
+        keyEquivalent: "")
+      mi.target = self
+      mi.representedObject = spec["id"] as? String
+      mi.isEnabled = spec["enabled"] as? Bool ?? true
+      menu.addItem(mi)
+    }
+    menu.addItem(NSMenuItem.separator())
+    menu.addItem(
+      NSMenuItem(title: "종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+    item.menu = menu
+  }
+
+  @objc private func menuClicked(_ sender: NSMenuItem) {
+    guard let id = sender.representedObject as? String else { return }
+    if id == "open" {
+      statusClicked()
+      return
+    }
+    channel?.invokeMethod("menuAction", arguments: id)
   }
 
   /// 작은 창으로 줄여 다른 창들 위에 띄우거나, 원래대로 돌립니다.

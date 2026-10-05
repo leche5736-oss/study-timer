@@ -612,16 +612,61 @@ String sessionsCsv(
 
 // ---------- 메뉴 막대 ----------
 
-/// Mac 메뉴 막대에 보여 줄 글자. 대기·정리 노트 단계면 null.
-String? menuBarText(TimerState t, DateTime now) {
+/// Mac 메뉴 막대에 보여 줄 글자. 공부하지 않을 때는 오늘 공부 시간.
+String menuBarText(TimerState t, DateTime now, {int todaySec = 0}) {
   switch (t.phase) {
     case Phase.focus:
       final sec = t.stopwatch ? t.elapsedSec(now) : t.remainingSec(now);
       return '${t.isRunning ? '집중' : '일시정지'} ${formatClock(sec)}';
     case Phase.rest:
       return '휴식 ${formatClock(t.remainingSec(now))}';
-    case Phase.idle:
     case Phase.recall:
-      return null;
+      return '정리 노트';
+    case Phase.idle:
+      return '오늘 ${formatHm(todaySec)}';
   }
+}
+
+/// 메뉴 막대를 눌렀을 때 나오는 메뉴. id는 main.dart에서 처리합니다.
+/// "open"(앱 열기)은 Mac 쪽에서 바로 처리합니다.
+List<Map<String, Object>> menuBarItems(
+  TimerState t,
+  List<Subject> subjects, {
+  int todaySec = 0,
+  int goalSec = 0,
+}) {
+  Map<String, Object> item(String id, String title, {bool enabled = true}) => {
+    'id': id,
+    'title': title,
+    'enabled': enabled,
+  };
+  const sep = <String, Object>{'separator': true};
+  final items = <Map<String, Object>>[
+    item(
+      'info',
+      '오늘 ${formatHms(todaySec)}${goalSec > 0 ? ' / 목표 ${formatHm(goalSec)}' : ''}',
+      enabled: false,
+    ),
+    sep,
+  ];
+  switch (t.phase) {
+    case Phase.idle:
+      if (subjects.isEmpty) {
+        items.add(item('open', '과목을 먼저 추가하세요…'));
+      }
+      for (final s in subjects) {
+        items.add(item('start:${s.id}', '▶ ${s.name} 집중 시작'));
+      }
+    case Phase.focus:
+      items.add(t.isRunning ? item('pause', '일시정지') : item('resume', '계속'));
+      items.add(item('finish', t.stopwatch ? '끝내기' : '지금 끝내기'));
+    case Phase.recall:
+      items.add(item('open', '정리 노트 쓰기…'));
+    case Phase.rest:
+      items.add(item('skipRest', '휴식 건너뛰기'));
+  }
+  items
+    ..add(sep)
+    ..add(item('open', '앱 열기'));
+  return items;
 }
