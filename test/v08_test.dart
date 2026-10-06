@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_timer/services/store.dart';
 import 'package:study_timer/models.dart';
 import 'package:study_timer/stats.dart';
 
@@ -59,5 +61,29 @@ void main() {
       expect(restReadiness(list).have, 6);
       expect(restReadiness(list).ready, isTrue);
     });
+  });
+
+  test('과목 순서를 바꾸면 그 순서로 보이고 다시 열어도 남는다', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final store = AppStore(prefs);
+    final a = store.addSubject('형법');
+    final b = store.addSubject('상법');
+    final c = store.addSubject('가족법');
+    expect(store.subjects.map((s) => s.name), ['형법', '상법', '가족법']);
+    store.reorderSubjects([c.id, a.id, b.id]);
+    expect(store.subjects.map((s) => s.name), ['가족법', '형법', '상법']);
+    await Future<void>.delayed(Duration.zero);
+    expect(AppStore(prefs).subjects.map((s) => s.name), ['가족법', '형법', '상법']);
+  });
+
+  test('예전 진한 과목 색은 파스텔로 바뀐다', () async {
+    SharedPreferences.setMockInitialValues({
+      'subjects':
+          '[{"id":"x","name":"형법","color":${0xFF4E79A7},"deleted":false,'
+          '"updated_at":"2026-10-01T00:00:00.000Z"}]',
+    });
+    final store = AppStore(await SharedPreferences.getInstance());
+    expect(store.subjects.single.color, AppStore.palette[0]);
   });
 }

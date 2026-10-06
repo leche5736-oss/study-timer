@@ -46,8 +46,11 @@ class AppStore extends ChangeNotifier {
   SharedPreferences get prefs => _prefs;
 
   List<Subject> get subjects =>
-      _subjects.values.where((s) => !s.deleted).toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
+      _subjects.values.where((s) => !s.deleted).toList()..sort(
+        (a, b) => a.order != b.order
+            ? a.order.compareTo(b.order)
+            : a.name.compareTo(b.name),
+      );
 
   List<Subject> get allSubjects => _subjects.values.toList();
 
@@ -77,6 +80,7 @@ class AppStore extends ChangeNotifier {
         final s = Subject.fromJson(j as Map<String, dynamic>);
         _subjects[s.id] = s;
       }
+      _pastelize();
     }
     final sess = _prefs.getString(_kSessions);
     if (sess != null) {
@@ -128,7 +132,20 @@ class AppStore extends ChangeNotifier {
 
   // ---------- 과목 ----------
 
+  /// 과목 색 (파스텔).
   static const palette = [
+    0xFF9DB4D6, // 파랑
+    0xFFEDBB9A, // 살구
+    0xFFE6A6AB, // 분홍
+    0xFFA3CFC8, // 민트
+    0xFFB6D0A0, // 연두
+    0xFFEBD596, // 노랑
+    0xFFC5B3D6, // 라벤더
+    0xFFCDB9A6, // 베이지
+  ];
+
+  /// 0.8.1까지 쓰던 진한 색. 불러올 때 같은 자리의 파스텔 색으로 바꿉니다.
+  static const _oldPalette = [
     0xFF4E79A7,
     0xFFF28E2B,
     0xFFE15759,
@@ -139,11 +156,36 @@ class AppStore extends ChangeNotifier {
     0xFF9C755F,
   ];
 
+  void _pastelize() {
+    for (final s in _subjects.values.toList()) {
+      final i = _oldPalette.indexOf(s.color);
+      if (i < 0) continue;
+      _subjects[s.id] = Subject(
+        id: s.id,
+        name: s.name,
+        color: palette[i],
+        order: s.order,
+        deleted: s.deleted,
+        updatedAt: s.updatedAt,
+      );
+    }
+  }
+
+  /// 과목 순서를 바꿉니다. [ids]는 위에서부터의 새 순서.
+  void reorderSubjects(List<String> ids) {
+    for (var i = 0; i < ids.length; i++) {
+      final s = _subjects[ids[i]];
+      if (s != null && s.order != i) _subjects[s.id] = s.copyWith(order: i);
+    }
+    _changed();
+  }
+
   Subject addSubject(String name) {
     final s = Subject(
       id: _uuid.v4(),
       name: name.trim(),
       color: palette[_subjects.length % palette.length],
+      order: _subjects.values.fold(-1, (m, s) => s.order > m ? s.order : m) + 1,
       updatedAt: now,
     );
     _subjects[s.id] = s;

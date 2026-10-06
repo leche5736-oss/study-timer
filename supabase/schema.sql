@@ -6,6 +6,7 @@ create table if not exists public.subjects (
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   name text not null,
   color bigint not null,
+  sort_order int not null default 0,
   deleted boolean not null default false,
   updated_at timestamptz not null
 );
@@ -70,3 +71,4 @@ alter table public.sessions add column if not exists rest_type text;
 -- 0.5.0: 딴짓 앱 감지 기록
 alter table public.sessions add column if not exists distractions int not null default 0;
 alter table public.sessions add column if not exists distracted_seconds int not null default 0;
+alter table public.subjects add column if not exists sort_order int not null default 0;

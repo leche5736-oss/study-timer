@@ -64,6 +64,15 @@ void main() {
     expect(rest.lastSessionId, 's1');
   });
 
+  test('일찍 끝내거나 스톱워치면 완료 블록으로 세지 않는다', () {
+    final (_, early) = TimerLogic.submitRecall(
+      TimerLogic.finishFocus(started(), at(600)),
+      now: at(600),
+    );
+    expect(early.blocksDone, 0);
+    expect(early.longRest, isFalse);
+  });
+
   test('직접 설정한 길이를 쓴다', () {
     const custom = Preset('직접', 40, 8, 20);
     final s = started(preset: custom);
@@ -80,9 +89,9 @@ void main() {
     late TimerState rest;
     for (var i = 0; i < 4; i++) {
       s = started(from: s, id: 's$i');
-      s = TimerLogic.finishFocus(s, at(10));
-      (_, rest) = TimerLogic.submitRecall(s, now: at(20));
-      s = TimerLogic.toIdle(rest, at(30));
+      s = TimerLogic.finishFocus(s, at(25 * 60));
+      (_, rest) = TimerLogic.submitRecall(s, now: at(25 * 60 + 10));
+      s = TimerLogic.toIdle(rest, at(25 * 60 + 20));
     }
     expect(rest.longRest, isTrue);
     expect(rest.durationSec, 15 * 60);

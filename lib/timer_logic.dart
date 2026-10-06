@@ -105,8 +105,10 @@ class TimerLogic {
   }) {
     assert(s.phase == Phase.recall);
     final focused = s.completedFocusSec ?? 0;
-    final blocks = s.blocksDone + 1;
-    final longRest = !s.stopwatch && blocks % blocksPerLongRest == 0;
+    // 정한 집중 시간을 끝까지 채운 블록만 셉니다 (스톱워치·일찍 끝낸 블록은 제외).
+    final full = !s.stopwatch && focused >= s.focusMin * 60;
+    final blocks = s.blocksDone + (full ? 1 : 0);
+    final longRest = full && blocks % blocksPerLongRest == 0;
     final restMin = s.stopwatch
         ? stopwatchRestMin(focused)
         : (longRest ? s.longRestMin : s.restMin);

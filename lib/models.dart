@@ -7,6 +7,7 @@ class Subject {
   final String id;
   final String name;
   final int color;
+  final int order; // 과목 목록 순서 (작을수록 위)
   final bool deleted;
   final DateTime updatedAt;
 
@@ -14,24 +15,28 @@ class Subject {
     required this.id,
     required this.name,
     required this.color,
+    this.order = 0,
     this.deleted = false,
     required this.updatedAt,
   });
 
   Color get colorValue => Color(color);
 
-  Subject copyWith({String? name, int? color, bool? deleted}) => Subject(
-    id: id,
-    name: name ?? this.name,
-    color: color ?? this.color,
-    deleted: deleted ?? this.deleted,
-    updatedAt: DateTime.now().toUtc(),
-  );
+  Subject copyWith({String? name, int? color, int? order, bool? deleted}) =>
+      Subject(
+        id: id,
+        name: name ?? this.name,
+        color: color ?? this.color,
+        order: order ?? this.order,
+        deleted: deleted ?? this.deleted,
+        updatedAt: DateTime.now().toUtc(),
+      );
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'color': color,
+    'sort_order': order,
     'deleted': deleted,
     'updated_at': updatedAt.toIso8601String(),
   };
@@ -40,6 +45,7 @@ class Subject {
     id: j['id'] as String,
     name: j['name'] as String,
     color: (j['color'] as num).toInt(),
+    order: (j['sort_order'] as num?)?.toInt() ?? 0,
     deleted: j['deleted'] as bool? ?? false,
     updatedAt: _parse(j['updated_at'])!,
   );
@@ -270,7 +276,7 @@ class TimerState {
   final Phase phase;
   final String? subjectId;
   final int presetIndex;
-  final int blocksDone; // 오늘 이어서 끝낸 집중 블록 수
+  final int blocksDone; // 정한 시간을 끝까지 채운 집중 블록 수
   final String? sessionId; // 진행 중인 집중 블록의 기록 id
   final DateTime? sessionStartedAt;
   final int durationSec; // 현재 단계의 목표 길이

@@ -25,8 +25,8 @@ void main() {
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
-    expect(find.text('0.8.1'), findsOneWidget);
-    Navigator.of(tester.element(find.text('0.8.1'))).pop();
+    expect(find.text('0.8.2'), findsOneWidget);
+    Navigator.of(tester.element(find.text('0.8.2'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('색 바꾸기'));
@@ -67,7 +67,7 @@ void main() {
     await tester.tap(find.text('휴식 건너뛰기'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.textContaining('1블록 완료'), findsOneWidget);
+    expect(find.textContaining('블록 완료'), findsNothing); // 일찍 끝낸 블록은 안 셈
     expect(find.text('딴생각 메모 1개'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.bar_chart_outlined));

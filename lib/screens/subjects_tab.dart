@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/store.dart';
+import '../theme.dart';
 
 class SubjectsTab extends StatelessWidget {
   final AppStore store;
@@ -21,13 +22,38 @@ class SubjectsTab extends StatelessWidget {
       ),
       body: subjects.isEmpty
           ? const Center(child: Text('아직 과목이 없어요. 아래 버튼으로 추가하세요.'))
-          : ListView(
+          // 왼쪽 손잡이를 잡고 끌어서 순서를 바꿉니다.
+          : ReorderableListView(
+              buildDefaultDragHandles: false,
+              onReorder: (from, to) {
+                final ids = subjects.map((s) => s.id).toList();
+                if (to > from) to--;
+                ids.insert(to, ids.removeAt(from));
+                store.reorderSubjects(ids);
+              },
               children: [
-                for (final s in subjects)
+                for (final (i, s) in subjects.indexed)
                   ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: s.colorValue,
-                      radius: 10,
+                    key: ValueKey(s.id),
+                    leading: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ReorderableDragStartListener(
+                          index: i,
+                          child: const MouseRegion(
+                            cursor: SystemMouseCursors.grab,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Icon(
+                                Icons.drag_indicator,
+                                color: AppColors.faint,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        CircleAvatar(backgroundColor: s.colorValue, radius: 10),
+                      ],
                     ),
                     title: Text(s.name),
                     onTap: () async {
@@ -138,7 +164,7 @@ Future<int?> _askColor(BuildContext context, Subject s) {
                 radius: 18,
                 backgroundColor: Color(color),
                 child: color == s.color
-                    ? const Icon(Icons.check, color: Colors.white)
+                    ? const Icon(Icons.check, color: AppColors.ink)
                     : null,
               ),
             ),
