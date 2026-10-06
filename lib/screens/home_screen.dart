@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
+import '../services/page_color.dart';
 import '../services/store.dart';
 import '../services/sync.dart';
 import '../services/window.dart';
@@ -80,18 +82,30 @@ class _HomeScreenState extends State<HomeScreen> {
           Phase.rest => RestScreen(store: store),
           _ => _home(context),
         };
+        // 위쪽 상태 막대(시간·배터리)도 화면 색에 맞춥니다.
+        final dark = phase == Phase.focus;
+        setPageColor(
+          dark
+              ? AppColors.night
+              : (phase == Phase.rest ? AppColors.restBg : Colors.white),
+        );
         // 어두운 바탕 위에서 이전 화면이 먼저 사라지고 새 화면이 나타납니다.
-        return ColoredBox(
-          color: AppColors.night,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 900),
-            switchInCurve: const Interval(0.4, 1, curve: Curves.easeOut),
-            switchOutCurve: const Interval(0.4, 1, curve: Curves.easeIn),
-            child: KeyedSubtree(
-              key: ValueKey(
-                phase == Phase.idle || phase == Phase.recall ? 0 : phase.index,
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          child: ColoredBox(
+            color: AppColors.night,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 900),
+              switchInCurve: const Interval(0.4, 1, curve: Curves.easeOut),
+              switchOutCurve: const Interval(0.4, 1, curve: Curves.easeIn),
+              child: KeyedSubtree(
+                key: ValueKey(
+                  phase == Phase.idle || phase == Phase.recall
+                      ? 0
+                      : phase.index,
+                ),
+                child: page,
               ),
-              child: page,
             ),
           ),
         );

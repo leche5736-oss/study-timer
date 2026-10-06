@@ -77,7 +77,9 @@ class TimerLogic {
     if (s.phase != Phase.focus) return s;
     s = leaveDistraction(s, now);
     final elapsed = s.elapsedSec(now);
-    final focused = s.stopwatch ? elapsed : elapsed.clamp(0, s.durationSec);
+    final total = s.stopwatch ? elapsed : elapsed.clamp(0, s.durationSec);
+    // 블록 중간에 과목을 바꿨으면 앞 과목 몫은 이미 기록했으므로 뺍니다.
+    final focused = (total - s.blockPriorSec).clamp(0, total);
     return TimerState(
       phase: Phase.recall,
       subjectId: s.subjectId,
@@ -92,7 +94,47 @@ class TimerLogic {
       longRestMin: s.longRestMin,
       distractions: s.distractions,
       distractedSec: s.distractedSec,
+      blockPriorSec: s.blockPriorSec,
       updatedAt: now,
+    );
+  }
+
+  /// 집중 중에 과목을 바꿉니다. 시간은 이어서 흐르고, 지금까지 집중한 시간은
+  /// 앞 과목의 기록으로 남깁니다 (1분 미만이면 기록 없이 과목만 바꿈).
+  static (StudySession?, TimerState) switchSubject(
+    TimerState s, {
+    required String subjectId,
+    required String sessionId,
+    required DateTime now,
+  }) {
+    if (s.phase != Phase.focus || s.subjectId == subjectId) return (null, s);
+    s = leaveDistraction(s, now);
+    final elapsed = s.elapsedSec(now);
+    final total = s.stopwatch ? elapsed : elapsed.clamp(0, s.durationSec);
+    final segment = total - s.blockPriorSec;
+    final relabel = _copyWith(s, now, subjectId: subjectId);
+    if (segment < 60) return (null, relabel);
+    final session = StudySession(
+      id: s.sessionId!,
+      subjectId: s.subjectId!,
+      startedAt: s.sessionStartedAt!,
+      endedAt: now,
+      plannedMinutes: s.focusMin,
+      focusSeconds: segment,
+      distractions: s.distractions,
+      distractedSeconds: s.distractedSec,
+      updatedAt: now,
+    );
+    return (
+      session,
+      _copyWith(
+        s,
+        now,
+        subjectId: subjectId,
+        sessionId: sessionId,
+        sessionStartedAt: now,
+        blockPriorSec: total,
+      ),
     );
   }
 
@@ -106,7 +148,7 @@ class TimerLogic {
     assert(s.phase == Phase.recall);
     final focused = s.completedFocusSec ?? 0;
     // 정한 집중 시간을 끝까지 채운 블록만 셉니다 (스톱워치·일찍 끝낸 블록은 제외).
-    final full = !s.stopwatch && focused >= s.focusMin * 60;
+    final full = !s.stopwatch && s.blockPriorSec + focused >= s.focusMin * 60;
     final blocks = s.blocksDone + (full ? 1 : 0);
     final longRest = full && blocks % blocksPerLongRest == 0;
     final restMin = s.stopwatch
@@ -202,6 +244,38 @@ class TimerLogic {
     distractedSince: clearDistractedSince
         ? null
         : (distractedSince ?? s.distractedSince),
+    blockPriorSec: s.blockPriorSec,
     updatedAt: now,
   );
+
+  /// 과목을 바꾼 새 구간. 딴짓 기록은 새 구간에서 다시 셉니다.
+  static TimerState _copyWith(
+    TimerState s,
+    DateTime now, {
+    required String subjectId,
+    String? sessionId,
+    DateTime? sessionStartedAt,
+    int? blockPriorSec,
+  }) {
+    final newSegment = sessionId != null;
+    return TimerState(
+      phase: s.phase,
+      subjectId: subjectId,
+      presetIndex: s.presetIndex,
+      blocksDone: s.blocksDone,
+      sessionId: sessionId ?? s.sessionId,
+      sessionStartedAt: sessionStartedAt ?? s.sessionStartedAt,
+      durationSec: s.durationSec,
+      accumulatedSec: s.accumulatedSec,
+      runningSince: s.runningSince,
+      stopwatch: s.stopwatch,
+      focusMin: s.focusMin,
+      restMin: s.restMin,
+      longRestMin: s.longRestMin,
+      distractions: newSegment ? 0 : s.distractions,
+      distractedSec: newSegment ? 0 : s.distractedSec,
+      blockPriorSec: blockPriorSec ?? s.blockPriorSec,
+      updatedAt: now,
+    );
+  }
 }

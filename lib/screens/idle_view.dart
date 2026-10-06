@@ -6,6 +6,7 @@ import '../services/store.dart';
 import '../stats.dart';
 import '../theme.dart';
 import 'space_key.dart';
+import 'subject_picker.dart';
 import 'thoughts_list.dart';
 
 /// 타이머 첫 화면. 밝은 바탕에 큰 시간, 과목 이름, 시작 버튼만 보입니다.
@@ -43,52 +44,10 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
     final subjects = store.subjects;
     final id = subjects.length == 1
         ? subjects.single.id
-        : await _pickSubject(subjects);
+        : await pickSubject(context, subjects, markId: store.timer.subjectId);
     if (id == null || !mounted) return;
     store.startFocus(id, _preset, stopwatch: _stopwatch);
   }
-
-  Future<String?> _pickSubject(
-    List<Subject> subjects,
-  ) => showModalBottomSheet<String>(
-    context: context,
-    isScrollControlled: true,
-    builder: (c) => SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(c).height * 0.7,
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.only(bottom: 8),
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text(
-                '무엇을 공부할까요?',
-                style: TextStyle(color: AppColors.grey, fontSize: 15),
-              ),
-            ),
-            for (final s in subjects)
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                leading: CircleAvatar(radius: 7, backgroundColor: s.colorValue),
-                minLeadingWidth: 14,
-                title: Text(s.name, style: const TextStyle(fontSize: 17)),
-                // 지난번에 공부한 과목 표시
-                trailing: s.id == store.timer.subjectId
-                    ? const Text(
-                        '지난번',
-                        style: TextStyle(color: AppColors.grey, fontSize: 13),
-                      )
-                    : null,
-                onTap: () => Navigator.pop(c, s.id),
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
 
   @override
   Widget build(BuildContext context) {

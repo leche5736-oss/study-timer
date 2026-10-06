@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/notifications.dart';
-import '../services/phone_flip_watcher.dart';
 import '../services/store.dart';
 import '../services/sync_config.dart';
 import '../services/window.dart';
@@ -129,20 +128,6 @@ class SettingsScreen extends StatelessWidget {
                       store.updateSettings(s.copyWith(menuBar: v)),
                 ),
                 const _LaunchAtLoginTile(),
-              ],
-              if (PhoneFlipWatcher.supported) ...[
-                const _Header('폰 엎어 두기'),
-                SwitchListTile(
-                  title: const Text('집중 중 폰을 엎어 두기'),
-                  subtitle: const Text(
-                    '집중을 시작하고 폰을 화면이 바닥을 보게 엎어 두세요. '
-                    '10초 넘게 들어 올리거나 다른 앱을 켜면 딴짓으로 기록해요. '
-                    '엎어 둔 동안은 화면이 꺼지지 않게 해 두니 잠금 버튼은 누르지 마세요.',
-                  ),
-                  value: s.phoneFlip,
-                  onChanged: (v) =>
-                      store.updateSettings(s.copyWith(phoneFlip: v)),
-                ),
               ],
               if (isMac) ...[
                 const _Header('딴짓 앱 감지'),

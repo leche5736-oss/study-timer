@@ -4,68 +4,58 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_timer/main.dart';
 import 'package:study_timer/models.dart';
-import 'package:study_timer/phone_flip.dart';
 import 'package:study_timer/services/notifications.dart';
 import 'package:study_timer/services/store.dart';
 import 'package:study_timer/timer_logic.dart';
 
 void main() {
-  group('폰 엎어 두기', () {
+  group('집중 중 과목 바꾸기', () {
     final t0 = DateTime.utc(2026, 10, 6, 9);
-    DateTime at(int sec) => t0.add(Duration(seconds: sec));
+    DateTime at(int min) => t0.add(Duration(minutes: min));
 
-    test('엎어 둔 뒤 10초 넘게 들어 올리면 들어 올린 순간부터 딴짓', () {
-      final d = FlipDetector();
-      expect(d.sample(9.8, at(0)), isNull); // 아직 엎어 두지 않음: 세지 않음
-      expect(d.sample(-9.8, at(1)), isNull);
-      expect(d.sample(-9.8, at(3)), isNull);
-      expect(d.armed, isTrue);
-      expect(d.sample(9.8, at(20)), isNull); // 들어 올림
-      expect(d.sample(9.8, at(25)), isNull); // 5초: 아직 아님
-      final e = d.sample(9.8, at(31))!;
-      expect(e.away, isTrue);
-      expect(e.at, at(20));
-      expect(d.sample(-9.8, at(40)), isNull);
-      final back = d.sample(-9.8, at(41))!;
-      expect(back.away, isFalse);
-    });
-
-    test('잠깐 들었다 놓으면 세지 않는다', () {
-      final d = FlipDetector()
-        ..sample(-9.8, at(0))
-        ..sample(-9.8, at(2));
-      expect(d.sample(0, at(10)), isNull);
-      expect(d.sample(0, at(15)), isNull);
-      expect(d.sample(-9.8, at(16)), isNull);
-      expect(d.away, isFalse);
-    });
-
-    test('엎어 둔 뒤 다른 앱을 켜면 바로 딴짓', () {
-      final d = FlipDetector();
-      expect(d.appHidden(at(0)), isNull); // 엎어 두기 전에는 세지 않음
-      d
-        ..sample(-9.8, at(0))
-        ..sample(-9.8, at(2));
-      final e = d.appHidden(at(5))!;
-      expect(e.away, isTrue);
-      expect(d.appHidden(at(6)), isNull); // 한 번만
-    });
-
-    test('스토어에 딴짓 횟수와 시간이 쌓인다', () async {
+    Future<(AppStore, void Function(DateTime))> setup() async {
       SharedPreferences.setMockInitialValues({});
       var clock = t0;
       final store = AppStore(
         await SharedPreferences.getInstance(),
         clock: () => clock,
       );
-      final s = store.addSubject('형법');
-      store.startFocus(s.id, 0);
-      clock = at(100);
-      store.phoneFlipped(away: true, at: at(60));
-      clock = at(130);
-      store.phoneFlipped(away: false, at: at(130));
-      expect(store.timer.distractions, 1);
-      expect(store.timer.distractedSec, 70);
+      return (store, (DateTime t) => clock = t);
+    }
+
+    test('바꾸기 전 시간은 앞 과목, 남은 시간은 새 과목으로 기록되고 블록은 이어진다', () async {
+      final (store, setClock) = await setup();
+      final a = store.addSubject('형법');
+      final b = store.addSubject('민법');
+      store.startFocus(a.id, 0); // 25분
+      setClock(at(10));
+      store.switchSubject(b.id);
+      expect(store.timer.subjectId, b.id);
+      expect(store.timer.remainingSec(at(10)), 15 * 60); // 시간은 이어짐
+      setClock(at(25));
+      store.tick(); // 시간이 다 되어 정리 노트로
+      expect(store.timer.phase, Phase.recall);
+      store.submitRecall(rating: 4);
+      final bySubject = {
+        for (final s in store.allSessions) s.subjectId: s.focusSeconds,
+      };
+      expect(bySubject, {a.id: 600, b.id: 900});
+      expect(store.timer.blocksDone, 1); // 끝까지 채운 블록으로 셈
+    });
+
+    test('1분 안에 바꾸면 기록 없이 과목만 바뀐다', () async {
+      final (store, setClock) = await setup();
+      final a = store.addSubject('형법');
+      final b = store.addSubject('민법');
+      store.startFocus(a.id, 0);
+      setClock(t0.add(const Duration(seconds: 30)));
+      store.switchSubject(b.id);
+      expect(store.allSessions, isEmpty);
+      setClock(at(25));
+      store.tick();
+      store.submitRecall();
+      expect(store.allSessions.single.subjectId, b.id);
+      expect(store.allSessions.single.focusSeconds, 1500);
     });
   });
 

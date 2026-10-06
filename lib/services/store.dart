@@ -336,12 +336,17 @@ class AppStore extends ChangeNotifier {
     return blocked;
   }
 
-  /// iPhone을 들어 올렸거나([away]) 다시 엎어 뒀을 때 (phone_flip.dart).
-  void phoneFlipped({required bool away, required DateTime at}) {
-    final next = away
-        ? TimerLogic.enterDistraction(_timer, at)
-        : TimerLogic.leaveDistraction(_timer, at);
-    if (!identical(next, _timer)) _setTimer(next);
+  /// 집중 중에 과목 바꾸기. 앞 과목에서 집중한 시간은 따로 기록됩니다.
+  void switchSubject(String subjectId) {
+    final (session, next) = TimerLogic.switchSubject(
+      _timer,
+      subjectId: subjectId,
+      sessionId: _uuid.v4(),
+      now: now,
+    );
+    if (identical(next, _timer)) return;
+    if (session != null) _sessions[session.id] = session;
+    _setTimer(next);
   }
 
   void submitRecall({int? rating, String note = ''}) {

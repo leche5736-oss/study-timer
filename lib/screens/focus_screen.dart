@@ -7,6 +7,7 @@ import '../services/store.dart';
 import '../stats.dart';
 import '../theme.dart';
 import 'space_key.dart';
+import 'subject_picker.dart';
 
 /// 집중 중 화면. 어두운 배경에 시간만 보이고, 화면을 누르거나 클릭하면
 /// 잠깐 동안 버튼과 딴생각 메모 칸이 나타났다가 다시 숨습니다.
@@ -68,6 +69,19 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
     });
   }
 
+  Future<void> _switchSubject() async {
+    _hideTimer?.cancel();
+    final id = await pickSubject(
+      context,
+      store.subjects,
+      title: '과목 바꾸기 (시간은 이어서 흘러요)',
+      markId: store.timer.subjectId,
+      markLabel: '지금',
+    );
+    if (id != null && mounted) store.switchSubject(id);
+    if (mounted) _scheduleHide();
+  }
+
   void _addThought() {
     store.addThought(_thought.text);
     _thought.clear();
@@ -93,13 +107,26 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
     final controls = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          [
-            subject?.name ?? '',
-            if (!t.isRunning) '일시정지',
-            if (t.distractions > 0) '딴짓 ${t.distractions}회',
-          ].join(' · '),
-          style: TextStyle(color: _dim, fontSize: 15),
+        // 과목 이름을 누르면 블록을 이어 가면서 과목만 바꿉니다.
+        TextButton(
+          key: const Key('focus-subject'),
+          style: link,
+          onPressed: store.subjects.length > 1 ? _switchSubject : null,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                [
+                  subject?.name ?? '',
+                  if (!t.isRunning) '일시정지',
+                  if (t.distractions > 0) '딴짓 ${t.distractions}회',
+                ].join(' · '),
+                style: TextStyle(color: _dim, fontSize: 15),
+              ),
+              if (store.subjects.length > 1)
+                Icon(Icons.expand_more, size: 18, color: AppColors.nightFaint),
+            ],
+          ),
         ),
         const SizedBox(height: 32),
         Row(

@@ -185,7 +185,6 @@ class Settings {
   final List<String> blockedApps; // 딴짓 앱 이름 목록
   final bool menuBar; // Mac: 메뉴 막대에 남은 시간 표시
   final String colorTheme; // 앱 색 테마 (theme.dart의 colorThemes id)
-  final bool phoneFlip; // iPhone: 엎어 두고 공부, 들어 올리면 딴짓으로 셈
 
   const Settings({
     this.dailyGoalMin = 180,
@@ -199,7 +198,6 @@ class Settings {
     this.blockedApps = const [],
     this.menuBar = true,
     this.colorTheme = 'blue',
-    this.phoneFlip = true,
   });
 
   Preset get customPreset => Preset(
@@ -224,7 +222,6 @@ class Settings {
     List<String>? blockedApps,
     bool? menuBar,
     String? colorTheme,
-    bool? phoneFlip,
   }) => Settings(
     dailyGoalMin: dailyGoalMin ?? this.dailyGoalMin,
     customFocusMin: customFocusMin ?? this.customFocusMin,
@@ -237,7 +234,6 @@ class Settings {
     blockedApps: blockedApps ?? this.blockedApps,
     menuBar: menuBar ?? this.menuBar,
     colorTheme: colorTheme ?? this.colorTheme,
-    phoneFlip: phoneFlip ?? this.phoneFlip,
   );
 
   Map<String, dynamic> toJson() => {
@@ -252,7 +248,6 @@ class Settings {
     'blocked_apps': blockedApps,
     'menu_bar': menuBar,
     'color_theme': colorTheme,
-    'phone_flip': phoneFlip,
   };
 
   factory Settings.fromJson(Map<String, dynamic> j) {
@@ -272,7 +267,6 @@ class Settings {
           (j['blocked_apps'] as List?)?.cast<String>() ?? d.blockedApps,
       menuBar: j['menu_bar'] as bool? ?? d.menuBar,
       colorTheme: j['color_theme'] as String? ?? d.colorTheme,
-      phoneFlip: j['phone_flip'] as bool? ?? d.phoneFlip,
     );
   }
 }
@@ -304,6 +298,9 @@ class TimerState {
   final int distractions; // 이번 블록에서 딴짓 앱으로 넘어간 횟수
   final int distractedSec; // 이번 블록에서 딴짓 앱에 머문 시간 (끝난 것만)
   final DateTime? distractedSince; // 지금 딴짓 앱에 있으면 그 시작 시각
+  /// 블록 중간에 과목을 바꿨을 때, 앞 과목으로 이미 기록한 집중 시간.
+  /// 지금 과목의 기록은 이 시간을 뺀 나머지입니다.
+  final int blockPriorSec;
   final DateTime updatedAt;
 
   const TimerState({
@@ -326,6 +323,7 @@ class TimerState {
     this.distractions = 0,
     this.distractedSec = 0,
     this.distractedSince,
+    this.blockPriorSec = 0,
     required this.updatedAt,
   });
 
@@ -369,6 +367,7 @@ class TimerState {
     'distractions': distractions,
     'distracted_sec': distractedSec,
     'distracted_since': distractedSince?.toIso8601String(),
+    'block_prior_sec': blockPriorSec,
     'updated_at': updatedAt.toIso8601String(),
   };
 
@@ -400,6 +399,7 @@ class TimerState {
       distractions: (j['distractions'] as num?)?.toInt() ?? 0,
       distractedSec: (j['distracted_sec'] as num?)?.toInt() ?? 0,
       distractedSince: _parse(j['distracted_since']),
+      blockPriorSec: (j['block_prior_sec'] as num?)?.toInt() ?? 0,
       updatedAt: _parse(j['updated_at'])!,
     );
   }
