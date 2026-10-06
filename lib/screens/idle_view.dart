@@ -5,6 +5,7 @@ import '../services/notifications.dart';
 import '../services/store.dart';
 import '../stats.dart';
 import '../theme.dart';
+import 'space_key.dart';
 import 'thoughts_list.dart';
 
 /// 타이머 첫 화면. 밝은 바탕에 큰 시간, 과목 이름, 시작 버튼만 보입니다.
@@ -22,7 +23,13 @@ class IdleView extends StatefulWidget {
   State<IdleView> createState() => _IdleViewState();
 }
 
-class _IdleViewState extends State<IdleView> {
+class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
+  /// 스페이스 키 = 시작
+  @override
+  void onSpace() {
+    if (store.timer.phase == Phase.idle && store.subjects.isNotEmpty) _start();
+  }
+
   late int _preset = widget.store.timer.presetIndex;
   late bool _stopwatch = widget.store.timer.stopwatch;
 

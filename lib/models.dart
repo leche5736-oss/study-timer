@@ -185,6 +185,7 @@ class Settings {
   final List<String> blockedApps; // 딴짓 앱 이름 목록
   final bool menuBar; // Mac: 메뉴 막대에 남은 시간 표시
   final String colorTheme; // 앱 색 테마 (theme.dart의 colorThemes id)
+  final bool phoneFlip; // iPhone: 엎어 두고 공부, 들어 올리면 딴짓으로 셈
 
   const Settings({
     this.dailyGoalMin = 180,
@@ -198,6 +199,7 @@ class Settings {
     this.blockedApps = const [],
     this.menuBar = true,
     this.colorTheme = 'blue',
+    this.phoneFlip = true,
   });
 
   Preset get customPreset => Preset(
@@ -222,6 +224,7 @@ class Settings {
     List<String>? blockedApps,
     bool? menuBar,
     String? colorTheme,
+    bool? phoneFlip,
   }) => Settings(
     dailyGoalMin: dailyGoalMin ?? this.dailyGoalMin,
     customFocusMin: customFocusMin ?? this.customFocusMin,
@@ -234,6 +237,7 @@ class Settings {
     blockedApps: blockedApps ?? this.blockedApps,
     menuBar: menuBar ?? this.menuBar,
     colorTheme: colorTheme ?? this.colorTheme,
+    phoneFlip: phoneFlip ?? this.phoneFlip,
   );
 
   Map<String, dynamic> toJson() => {
@@ -248,6 +252,7 @@ class Settings {
     'blocked_apps': blockedApps,
     'menu_bar': menuBar,
     'color_theme': colorTheme,
+    'phone_flip': phoneFlip,
   };
 
   factory Settings.fromJson(Map<String, dynamic> j) {
@@ -267,6 +272,7 @@ class Settings {
           (j['blocked_apps'] as List?)?.cast<String>() ?? d.blockedApps,
       menuBar: j['menu_bar'] as bool? ?? d.menuBar,
       colorTheme: j['color_theme'] as String? ?? d.colorTheme,
+      phoneFlip: j['phone_flip'] as bool? ?? d.phoneFlip,
     );
   }
 }

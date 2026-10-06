@@ -14,6 +14,10 @@ class Notifications {
 
   static const _id = 1;
   static const _nudgeId = 2;
+  static const _restWarnId = 3;
+
+  /// 휴식이 끝나기 이만큼 전에 미리 알려 줍니다 (휴식 중 다른 앱을 쓰니까).
+  static const restWarnBefore = Duration(minutes: 1);
 
   /// 알림 소리. 설정 화면에서 바꿉니다.
   bool sound = true;
@@ -58,13 +62,38 @@ class Notifications {
     if (kIsWeb) return _showIfTimeUp(previous, s);
     try {
       await _plugin.cancel(id: _id);
+      await _plugin.cancel(id: _restWarnId);
       final end = s.endsAt();
       if (end == null || !end.isAfter(DateTime.now())) return;
       final (title, body) = _message(s.phase);
       if (title == null) return;
-      await _plugin.zonedSchedule(
-        id: _id,
-        scheduledDate: tz.TZDateTime.from(end, tz.UTC),
+      await _schedule(_id, end, title, body);
+      final warnAt = restWarnAt(s);
+      if (warnAt != null && warnAt.isAfter(DateTime.now())) {
+        await _schedule(
+          _restWarnId,
+          warnAt,
+          '휴식 1분 남았어요',
+          '하던 것을 정리하고 공부로 돌아올 준비를 해요.',
+        );
+      }
+    } catch (e) {
+      debugPrint('알림 예약 실패: $e');
+    }
+  }
+
+  /// 휴식이 [restWarnBefore] 넘게 남아 있으면 미리 알릴 시각, 아니면 null.
+  static DateTime? restWarnAt(TimerState s) {
+    final end = s.endsAt();
+    if (s.phase != Phase.rest || end == null) return null;
+    if (s.durationSec <= restWarnBefore.inSeconds) return null;
+    return end.subtract(restWarnBefore);
+  }
+
+  Future<void> _schedule(int id, DateTime at, String title, String? body) =>
+      _plugin.zonedSchedule(
+        id: id,
+        scheduledDate: tz.TZDateTime.from(at, tz.UTC),
         notificationDetails: NotificationDetails(
           iOS: DarwinNotificationDetails(presentSound: sound),
           macOS: DarwinNotificationDetails(presentSound: sound),
@@ -73,10 +102,6 @@ class Notifications {
         title: title,
         body: body,
       );
-    } catch (e) {
-      debugPrint('알림 예약 실패: $e');
-    }
-  }
 
   /// 딴짓 앱으로 넘어갔을 때 바로 띄우는 알림.
   Future<void> nudge(String appName) async {
@@ -87,6 +112,7 @@ class Notifications {
         title: '지금은 집중 시간이에요',
         body: '$appName 대신 공부로 돌아갈까요?',
         notificationDetails: NotificationDetails(
+          iOS: DarwinNotificationDetails(presentSound: sound),
           macOS: DarwinNotificationDetails(presentSound: sound),
         ),
       );

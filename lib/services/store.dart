@@ -336,6 +336,14 @@ class AppStore extends ChangeNotifier {
     return blocked;
   }
 
+  /// iPhone을 들어 올렸거나([away]) 다시 엎어 뒀을 때 (phone_flip.dart).
+  void phoneFlipped({required bool away, required DateTime at}) {
+    final next = away
+        ? TimerLogic.enterDistraction(_timer, at)
+        : TimerLogic.leaveDistraction(_timer, at);
+    if (!identical(next, _timer)) _setTimer(next);
+  }
+
   void submitRecall({int? rating, String note = ''}) {
     final (session, next) = TimerLogic.submitRecall(
       _timer,

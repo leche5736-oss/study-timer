@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/notifications.dart';
+import 'services/phone_flip_watcher.dart';
 import 'services/store.dart';
 import 'services/sync_config.dart';
 import 'services/window.dart';
@@ -53,6 +54,7 @@ Future<void> main() async {
     );
   }
 
+  PhoneFlipWatcher(store).start();
   store.addListener(updateMenuBar);
   Timer.periodic(const Duration(minutes: 1), (_) => updateMenuBar());
   updateMenuBar();

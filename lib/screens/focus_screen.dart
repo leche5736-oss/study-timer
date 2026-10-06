@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models.dart';
 import '../services/store.dart';
 import '../stats.dart';
 import '../theme.dart';
+import 'space_key.dart';
 
 /// 집중 중 화면. 어두운 배경에 시간만 보이고, 화면을 누르거나 클릭하면
 /// 잠깐 동안 버튼과 딴생각 메모 칸이 나타났다가 다시 숨습니다.
@@ -19,7 +21,14 @@ class FocusScreen extends StatefulWidget {
   State<FocusScreen> createState() => _FocusScreenState();
 }
 
-class _FocusScreenState extends State<FocusScreen> {
+class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
+  /// 스페이스 키 = 일시정지/계속
+  @override
+  void onSpace() {
+    if (store.timer.phase != Phase.focus) return;
+    store.timer.isRunning ? store.pause() : store.resume();
+  }
+
   static Color get _dim => AppColors.dim;
   static const _hideAfter = Duration(seconds: 4);
 
