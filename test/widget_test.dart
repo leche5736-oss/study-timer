@@ -25,8 +25,8 @@ void main() {
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
-    expect(find.text('0.8.0'), findsOneWidget);
-    Navigator.of(tester.element(find.text('0.8.0'))).pop();
+    expect(find.text('0.8.1'), findsOneWidget);
+    Navigator.of(tester.element(find.text('0.8.1'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('색 바꾸기'));
@@ -64,8 +64,6 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('휴식'), findsOneWidget);
     expect(find.text('택배 찾기'), findsOneWidget); // 휴식 때 다시 보여줌
-    await tester.tap(find.text('휴식'));
-    await tester.pump();
     await tester.tap(find.text('휴식 건너뛰기'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -79,6 +77,7 @@ void main() {
       await tester.tap(find.text(tab));
       await tester.pumpAndSettle();
     }
-    expect(find.textContaining('딴생각 메모 1개'), findsOneWidget);
+    // 기록이 적으면 분석 대신 얼마나 더 쌓아야 하는지 보여 줌
+    expect(find.textContaining('더 쌓이면 볼 수 있어요'), findsNWidgets(3));
   });
 }

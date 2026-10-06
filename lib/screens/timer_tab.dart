@@ -127,7 +127,7 @@ class _RatingDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.ink : AppColors.fill,
+      color: selected ? AppColors.accent : AppColors.fill,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),

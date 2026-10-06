@@ -23,10 +23,10 @@ class MiniTimer extends StatelessWidget {
     final label = rest
         ? (t.longRest ? '긴 휴식' : '휴식')
         : '${subject?.name ?? ''}${t.isRunning ? '' : ' · 일시정지'}';
-    const fg = AppColors.dim;
+    final fg = rest ? AppColors.ink : AppColors.dim;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: rest ? AppColors.restBg : AppColors.night,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
@@ -44,7 +44,7 @@ class MiniTimer extends StatelessWidget {
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: fg),
+                    style: TextStyle(color: fg),
                   ),
                 ),
                 if (t.distractions > 0 && !rest)
@@ -84,7 +84,7 @@ class MiniTimer extends StatelessWidget {
                   ),
                 IconButton(
                   tooltip: '크게 보기',
-                  icon: const Icon(Icons.open_in_full, color: fg),
+                  icon: Icon(Icons.open_in_full, color: fg),
                   onPressed: onExpand,
                 ),
               ],

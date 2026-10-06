@@ -6,6 +6,7 @@ import '../models.dart';
 import '../services/store.dart';
 import '../services/sync.dart';
 import '../services/window.dart';
+import '../theme.dart';
 import 'focus_screen.dart';
 import 'history_tab.dart';
 import 'mini_timer.dart';
@@ -79,9 +80,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Phase.rest => RestScreen(store: store),
           _ => _home(context),
         };
-        // 검은 바탕 위에서 이전 화면이 먼저 사라지고 새 화면이 나타납니다.
+        // 어두운 바탕 위에서 이전 화면이 먼저 사라지고 새 화면이 나타납니다.
         return ColoredBox(
-          color: Colors.black,
+          color: AppColors.night,
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 900),
             switchInCurve: const Interval(0.4, 1, curve: Curves.easeOut),

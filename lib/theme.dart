@@ -1,31 +1,33 @@
 import 'package:flutter/material.dart';
 
-/// 앱 전체 색과 모양. 흰 바탕에 검은 글자, 회색은 보조 정보에만 씁니다.
-/// 집중·휴식 화면만 검은 바탕입니다 (focus_screen.dart, rest_screen.dart).
+/// 앱 전체 색과 모양. 흰 바탕에 파스텔 블루, 글자는 짙은 남색, 보조 정보는 회색.
+/// 집중 화면만 어두운 남색 바탕입니다 (focus_screen.dart).
 class AppColors {
-  static const ink = Color(0xFF1C1C1E); // 글자, 시작 버튼
-  static const grey = Color(0xFF8E8E93); // 보조 글자
-  static const faint = Color(0xFFC7C7CC); // 고르지 않은 항목
-  static const fill = Color(0xFFF2F2F7); // 입력 칸, 카드 바탕
-  static const line = Color(0xFFE5E5EA); // 구분선
+  static const ink = Color(0xFF1F2A44); // 글자
+  static const accent = Color(0xFF6B9BF2); // 시작 버튼, 고른 항목
+  static const soft = Color(0xFFDCE8FC); // 연한 파랑 (숨쉬기 원 등)
+  static const grey = Color(0xFF8A94A6); // 보조 글자
+  static const faint = Color(0xFFC5CEDD); // 고르지 않은 항목
+  static const fill = Color(0xFFF1F5FC); // 입력 칸, 카드 바탕
+  static const line = Color(0xFFE3E9F3); // 구분선
+  static const restBg = Color(0xFFF5F8FE); // 휴식 화면 바탕
 
-  // 어두운 화면 (집중·휴식)
-  static const dim = Color(0xFF8A8F98);
-  static const dimLine = Color(0xFF2A2F37);
+  // 집중 화면 (어두운 남색)
+  static const night = Color(0xFF0F1626);
+  static const nightRaised = Color(0xFF1A2438); // 버튼, 입력 칸
+  static const dim = Color(0xFF9FB6DB); // 시간, 글자
+  static const nightFaint = Color(0xFF4A5874); // 안내 글자
 }
 
 ThemeData appTheme() {
-  final scheme =
-      ColorScheme.fromSeed(
-        seedColor: AppColors.ink,
-        dynamicSchemeVariant: DynamicSchemeVariant.monochrome,
-      ).copyWith(
-        primary: AppColors.ink,
-        onPrimary: Colors.white,
-        surface: Colors.white,
-        surfaceContainerHighest: AppColors.fill,
-        outlineVariant: AppColors.line,
-      );
+  final scheme = ColorScheme.fromSeed(seedColor: AppColors.accent).copyWith(
+    primary: AppColors.accent,
+    onSurface: AppColors.ink,
+    onPrimary: Colors.white,
+    surface: Colors.white,
+    surfaceContainerHighest: AppColors.fill,
+    outlineVariant: AppColors.line,
+  );
   final rounded = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(12),
   );
@@ -56,7 +58,7 @@ ThemeData appTheme() {
         (s) => TextStyle(
           fontSize: 11,
           color: s.contains(WidgetState.selected)
-              ? AppColors.ink
+              ? AppColors.accent
               : AppColors.grey,
         ),
       ),
@@ -64,7 +66,7 @@ ThemeData appTheme() {
         (s) => IconThemeData(
           size: 24,
           color: s.contains(WidgetState.selected)
-              ? AppColors.ink
+              ? AppColors.accent
               : AppColors.faint,
         ),
       ),
@@ -78,7 +80,7 @@ ThemeData appTheme() {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: AppColors.ink,
+        backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         shape: rounded,
       ),
@@ -95,7 +97,7 @@ ThemeData appTheme() {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: AppColors.fill,
-      selectedColor: AppColors.ink,
+      selectedColor: AppColors.accent,
       labelStyle: TextStyle(
         color: WidgetStateColor.resolveWith(
           (s) =>
@@ -110,7 +112,7 @@ ThemeData appTheme() {
       style: ButtonStyle(
         side: const WidgetStatePropertyAll(BorderSide(color: AppColors.line)),
         backgroundColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? AppColors.ink : null,
+          (s) => s.contains(WidgetState.selected) ? AppColors.accent : null,
         ),
         foregroundColor: WidgetStateProperty.resolveWith(
           (s) =>

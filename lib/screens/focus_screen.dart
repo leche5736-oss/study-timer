@@ -6,7 +6,7 @@ import '../services/store.dart';
 import '../stats.dart';
 import '../theme.dart';
 
-/// 집중 중 화면. 어두운 배경에 시간만 보이고, 화면을 누르거나 마우스를 움직이면
+/// 집중 중 화면. 어두운 배경에 시간만 보이고, 화면을 누르거나 클릭하면
 /// 잠깐 동안 버튼과 딴생각 메모 칸이 나타났다가 다시 숨습니다.
 class FocusScreen extends StatefulWidget {
   final AppStore store;
@@ -108,7 +108,7 @@ class _FocusScreenState extends State<FocusScreen> {
         TextField(
           controller: _thought,
           focusNode: _thoughtFocus,
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: AppColors.dim),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _addThought(),
           onChanged: (_) => _scheduleHide(),
@@ -117,7 +117,7 @@ class _FocusScreenState extends State<FocusScreen> {
                 ? '딴생각 메모 (적고 Enter, 휴식 때 보여 드려요)'
                 : '딴생각 메모 · 이번 블록 $thoughtsThisBlock개',
             hintStyle: const TextStyle(color: Color(0xFF555A62)),
-            fillColor: const Color(0xFF111214),
+            fillColor: AppColors.nightRaised,
           ),
         ),
         const SizedBox(height: 16),
@@ -141,43 +141,37 @@ class _FocusScreenState extends State<FocusScreen> {
     );
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: MouseRegion(
-        onHover: (_) => _reveal(),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _reveal,
-          child: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        formatClock(shownSec),
-                        style: const TextStyle(
-                          color: _dim,
-                          fontSize: 96,
-                          fontWeight: FontWeight.w200,
-                          letterSpacing: -2,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
+      backgroundColor: AppColors.night,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _reveal,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      formatClock(shownSec),
+                      style: const TextStyle(
+                        color: _dim,
+                        fontSize: 96,
+                        fontWeight: FontWeight.w200,
+                        letterSpacing: -2,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
-                      const SizedBox(height: 24),
-                      AnimatedOpacity(
-                        opacity: visible ? 1 : 0,
-                        duration: const Duration(milliseconds: 300),
-                        child: IgnorePointer(
-                          ignoring: !visible,
-                          child: controls,
-                        ),
-                      ),
-                      if (!visible) const Text('화면을 누르면 버튼이 나와요', style: small),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 24),
+                    AnimatedOpacity(
+                      opacity: visible ? 1 : 0,
+                      duration: const Duration(milliseconds: 300),
+                      child: IgnorePointer(ignoring: !visible, child: controls),
+                    ),
+                    if (!visible) const Text('화면을 누르면 버튼이 나와요', style: small),
+                  ],
                 ),
               ),
             ),
@@ -216,7 +210,7 @@ class _RoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xFF1C1C1E),
+    color: AppColors.nightRaised,
     shape: const CircleBorder(),
     child: InkWell(
       customBorder: const CircleBorder(),
@@ -227,7 +221,7 @@ class _RoundButton extends StatelessWidget {
         child: Center(
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 15),
+            style: const TextStyle(color: AppColors.dim, fontSize: 15),
           ),
         ),
       ),

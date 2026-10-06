@@ -81,13 +81,28 @@ class _StatsTabState extends State<StatsTab> {
                 ]),
                 page([
                   _section(theme, '딴짓·딴생각 (최근 7일)'),
-                  _distractions(theme, sessions, now),
+                  _gated(
+                    theme,
+                    distractionReadiness(sessions, now, dayStartHour: _h),
+                    '최근 7일 중 공부한 날',
+                    () => _distractions(theme, sessions, now),
+                  ),
                   const Divider(height: 48),
                   _section(theme, '집중 길이별 집중도'),
-                  _lengths(theme, sessions),
+                  _gated(
+                    theme,
+                    lengthReadiness(sessions),
+                    '집중도를 남긴 블록',
+                    () => _lengths(theme, sessions),
+                  ),
                   const Divider(height: 48),
                   _section(theme, '휴식 방식별 다음 블록 집중도'),
-                  _rests(theme, sessions),
+                  _gated(
+                    theme,
+                    restReadiness(sessions),
+                    '휴식 중 한 일을 남기고 이어서 공부한 블록',
+                    () => _rests(theme, sessions),
+                  ),
                   const Divider(height: 48),
                   _csvButton(sessions),
                 ]),
@@ -508,6 +523,31 @@ class _StatsTabState extends State<StatsTab> {
         Text('딴생각 메모 ${d.thoughts}개'),
         const SizedBox(height: 4),
         _empty(theme, '딴짓 앱 감지는 Mac 앱에서 ⚙︎ 설정 > 딴짓 앱 감지에 앱을 추가하면 기록돼요.'),
+      ],
+    );
+  }
+
+  /// 기록이 [r.need]만큼 쌓이면 분석을 보여 주고, 그 전에는 얼마나 남았는지만.
+  Widget _gated(
+    ThemeData theme,
+    Readiness r,
+    String what,
+    Widget Function() build,
+  ) {
+    if (r.ready) return build();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(value: r.progress, minHeight: 6),
+        ),
+        const SizedBox(height: 8),
+        _empty(
+          theme,
+          '$what ${r.have}/${r.need}${r.unit} · '
+          '${r.need - r.have}${r.unit} 더 쌓이면 볼 수 있어요',
+        ),
       ],
     );
   }

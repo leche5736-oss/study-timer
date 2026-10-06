@@ -670,3 +670,49 @@ List<Map<String, Object>> menuBarItems(
     ..add(item('open', '앱 열기'));
   return items;
 }
+
+// ---------- 분석을 보여 줄 만큼 기록이 쌓였는지 ----------
+
+/// 분석 하나를 열기 위한 기록 수. [have]가 [need] 이상이면 분석을 보여 줍니다.
+class Readiness {
+  final int have;
+  final int need;
+  final String unit; // '일', '번'
+  const Readiness(this.have, this.need, this.unit);
+
+  bool get ready => have >= need;
+  double get progress => (have / need).clamp(0, 1).toDouble();
+}
+
+/// 딴짓·딴생각: 최근 7일 중 3일 이상 공부해야 비교할 만합니다.
+Readiness distractionReadiness(
+  Iterable<StudySession> sessions,
+  DateTime now, {
+  int dayStartHour = 0,
+}) {
+  final today = studyDate(now, dayStartHour);
+  final since = DateTime(today.year, today.month, today.day - 6);
+  final days = dailyTotals(
+    sessions,
+    dayStartHour: dayStartHour,
+  ).keys.where((d) => !d.isBefore(since) && !d.isAfter(today)).length;
+  return Readiness(days, 3, '일');
+}
+
+/// 집중 길이별 집중도: 집중도를 남긴 5분 넘는 블록 10개.
+Readiness lengthReadiness(Iterable<StudySession> sessions) => Readiness(
+  sessions
+      .where(
+        (s) => !s.deleted && s.focusRating != null && s.focusSeconds >= 5 * 60,
+      )
+      .length,
+  10,
+  '번',
+);
+
+/// 휴식 방식별 비교: "휴식 중 한 일"을 남기고 이어서 공부한 경우 6번.
+Readiness restReadiness(Iterable<StudySession> sessions) => Readiness(
+  restComparison(sessions).fold(0, (sum, r) => sum + r.count),
+  6,
+  '번',
+);
