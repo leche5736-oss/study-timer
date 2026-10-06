@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_timer/main.dart';
 import 'package:study_timer/services/store.dart';
+import 'package:study_timer/theme.dart';
 
 void main() {
   testWidgets('과목을 추가하고 집중을 시작할 수 있다', (tester) async {
@@ -25,8 +26,12 @@ void main() {
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
-    expect(find.text('0.8.2'), findsOneWidget);
-    Navigator.of(tester.element(find.text('0.8.2'))).pop();
+    expect(find.text('0.8.3'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('theme-sage')));
+    await tester.pumpAndSettle();
+    expect(store.settings.colorTheme, 'sage');
+    expect(AppColors.accent, colorThemeById('sage').accent);
+    Navigator.of(tester.element(find.text('0.8.3'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('색 바꾸기'));

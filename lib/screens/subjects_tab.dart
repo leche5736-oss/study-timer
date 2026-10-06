@@ -50,8 +50,20 @@ class SubjectsTab extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        CircleAvatar(backgroundColor: s.colorValue, radius: 10),
+                        // 색 동그라미를 누르면 바로 색을 고릅니다.
+                        IconButton(
+                          tooltip: '색 바꾸기',
+                          onPressed: () async {
+                            final color = await _askColor(context, s);
+                            if (color != null) {
+                              store.setSubjectColor(s.id, color);
+                            }
+                          },
+                          icon: CircleAvatar(
+                            backgroundColor: s.colorValue,
+                            radius: 10,
+                          ),
+                        ),
                       ],
                     ),
                     title: Text(s.name),
@@ -63,25 +75,10 @@ class SubjectsTab extends StatelessWidget {
                       );
                       if (name != null) store.renameSubject(s.id, name);
                     },
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: '색 바꾸기',
-                          icon: const Icon(Icons.palette_outlined),
-                          onPressed: () async {
-                            final color = await _askColor(context, s);
-                            if (color != null) {
-                              store.setSubjectColor(s.id, color);
-                            }
-                          },
-                        ),
-                        IconButton(
-                          tooltip: '삭제',
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _confirmDelete(context, s),
-                        ),
-                      ],
+                    trailing: IconButton(
+                      tooltip: '삭제',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _confirmDelete(context, s),
                     ),
                   ),
               ],

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_timer/services/store.dart';
 import 'package:study_timer/models.dart';
 import 'package:study_timer/stats.dart';
+import 'package:study_timer/theme.dart';
 
 StudySession _s(DateTime startLocal, int sec, {int? rating, String? rest}) =>
     StudySession(
@@ -85,5 +86,15 @@ void main() {
     });
     final store = AppStore(await SharedPreferences.getInstance());
     expect(store.subjects.single.color, AppStore.palette[0]);
+  });
+
+  test('색 테마는 저장되고, 모르는 id면 기본 파랑', () {
+    final s = Settings.fromJson(
+      const Settings(colorTheme: 'lavender').toJson(),
+    );
+    expect(s.colorTheme, 'lavender');
+    expect(const Settings().colorTheme, 'blue');
+    expect(colorThemeById('없음').id, 'blue');
+    expect(colorThemes.length, 4);
   });
 }

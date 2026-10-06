@@ -89,17 +89,21 @@ class StudyTimerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '공부 타이머',
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('ko'),
-      supportedLocales: const [Locale('ko')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: appTheme(),
-      home: ValueListenableBuilder<SyncConfig?>(
-        valueListenable: SyncConfig.active,
-        builder: (context, sync, _) =>
-            sync == null ? HomeScreen(store: store) : AuthGate(store: store),
+    // 설정에서 색 테마를 바꾸면 앱 전체 색이 바로 바뀝니다.
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) => MaterialApp(
+        title: '공부 타이머',
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('ko'),
+        supportedLocales: const [Locale('ko')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        theme: themeFor(store.settings.colorTheme),
+        home: ValueListenableBuilder<SyncConfig?>(
+          valueListenable: SyncConfig.active,
+          builder: (context, sync, _) =>
+              sync == null ? HomeScreen(store: store) : AuthGate(store: store),
+        ),
       ),
     );
   }

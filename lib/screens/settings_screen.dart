@@ -25,6 +25,23 @@ class SettingsScreen extends StatelessWidget {
           final s = store.settings;
           return ListView(
             children: [
+              const _Header('색 테마'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Wrap(
+                  spacing: 20,
+                  runSpacing: 12,
+                  children: [
+                    for (final t in colorThemes)
+                      _ThemeChoice(
+                        theme: t,
+                        selected: t.id == colorThemeById(s.colorTheme).id,
+                        onTap: () =>
+                            store.updateSettings(s.copyWith(colorTheme: t.id)),
+                      ),
+                  ],
+                ),
+              ),
               const _Header('오늘 목표'),
               _MinutesTile(
                 title: '하루 목표 공부 시간',
@@ -391,6 +408,52 @@ class _LaunchAtLoginTileState extends State<_LaunchAtLoginTile> {
               }
             }
           },
+  );
+}
+
+/// 색 테마 하나: 동그라미와 이름. 고른 것은 테두리가 진해집니다.
+class _ThemeChoice extends StatelessWidget {
+  final ColorTheme theme;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ThemeChoice({
+    required this.theme,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    key: ValueKey('theme-${theme.id}'),
+    borderRadius: BorderRadius.circular(8),
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(4),
+      child: Column(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: theme.accent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? AppColors.ink : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            theme.label,
+            style: TextStyle(
+              fontSize: 12,
+              color: selected ? AppColors.ink : AppColors.grey,
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }
 

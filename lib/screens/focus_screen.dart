@@ -20,7 +20,7 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> {
-  static const _dim = AppColors.dim;
+  static Color get _dim => AppColors.dim;
   static const _hideAfter = Duration(seconds: 4);
 
   final _thought = TextEditingController();
@@ -78,7 +78,7 @@ class _FocusScreenState extends State<FocusScreen> {
     final thoughtsThisBlock = since == null
         ? 0
         : store.thoughts.where((n) => !n.createdAt.isBefore(since)).length;
-    const small = TextStyle(color: _dim, fontSize: 13);
+    final small = TextStyle(color: _dim, fontSize: 13);
     final link = TextButton.styleFrom(foregroundColor: _dim);
 
     final controls = Column(
@@ -90,7 +90,7 @@ class _FocusScreenState extends State<FocusScreen> {
             if (!t.isRunning) '일시정지',
             if (t.distractions > 0) '딴짓 ${t.distractions}회',
           ].join(' · '),
-          style: const TextStyle(color: _dim, fontSize: 15),
+          style: TextStyle(color: _dim, fontSize: 15),
         ),
         const SizedBox(height: 32),
         Row(
@@ -108,7 +108,7 @@ class _FocusScreenState extends State<FocusScreen> {
         TextField(
           controller: _thought,
           focusNode: _thoughtFocus,
-          style: const TextStyle(color: AppColors.dim),
+          style: TextStyle(color: AppColors.dim),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _addThought(),
           onChanged: (_) => _scheduleHide(),
@@ -116,7 +116,7 @@ class _FocusScreenState extends State<FocusScreen> {
             hintText: thoughtsThisBlock == 0
                 ? '딴생각 메모 (적고 Enter, 휴식 때 보여 드려요)'
                 : '딴생각 메모 · 이번 블록 $thoughtsThisBlock개',
-            hintStyle: const TextStyle(color: Color(0xFF555A62)),
+            hintStyle: TextStyle(color: AppColors.nightFaint),
             fillColor: AppColors.nightRaised,
           ),
         ),
@@ -156,12 +156,12 @@ class _FocusScreenState extends State<FocusScreen> {
                   children: [
                     Text(
                       formatClock(shownSec),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _dim,
                         fontSize: 96,
                         fontWeight: FontWeight.w200,
                         letterSpacing: -2,
-                        fontFeatures: [FontFeature.tabularFigures()],
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -170,7 +170,7 @@ class _FocusScreenState extends State<FocusScreen> {
                       duration: const Duration(milliseconds: 300),
                       child: IgnorePointer(ignoring: !visible, child: controls),
                     ),
-                    if (!visible) const Text('화면을 누르면 버튼이 나와요', style: small),
+                    if (!visible) Text('화면을 누르면 버튼이 나와요', style: small),
                   ],
                 ),
               ),
@@ -221,7 +221,7 @@ class _RoundButton extends StatelessWidget {
         child: Center(
           child: Text(
             label,
-            style: const TextStyle(color: AppColors.dim, fontSize: 15),
+            style: TextStyle(color: AppColors.dim, fontSize: 15),
           ),
         ),
       ),

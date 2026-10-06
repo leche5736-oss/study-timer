@@ -200,7 +200,7 @@ class _IdleViewState extends State<IdleView> {
                     ? const Text('길이는 설정에서 바꿔요')
                     : null,
                 trailing: !_stopwatch && _preset == i
-                    ? const Icon(Icons.check, color: AppColors.accent)
+                    ? Icon(Icons.check, color: AppColors.accent)
                     : null,
                 onTap: () {
                   setState(() {
@@ -214,7 +214,7 @@ class _IdleViewState extends State<IdleView> {
               title: const Text('스톱워치'),
               subtitle: const Text('시간 제한 없이, 집중한 시간의 1/5만큼 휴식'),
               trailing: _stopwatch
-                  ? const Icon(Icons.check, color: AppColors.accent)
+                  ? Icon(Icons.check, color: AppColors.accent)
                   : null,
               onTap: () {
                 setState(() => _stopwatch = true);
