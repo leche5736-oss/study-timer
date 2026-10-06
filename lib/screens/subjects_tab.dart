@@ -25,9 +25,8 @@ class SubjectsTab extends StatelessWidget {
           // 왼쪽 손잡이를 잡고 끌어서 순서를 바꿉니다.
           : ReorderableListView(
               buildDefaultDragHandles: false,
-              onReorder: (from, to) {
+              onReorderItem: (from, to) {
                 final ids = subjects.map((s) => s.id).toList();
-                if (to > from) to--;
                 ids.insert(to, ids.removeAt(from));
                 store.reorderSubjects(ids);
               },
