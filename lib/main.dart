@@ -6,19 +6,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/home_screen.dart';
-import 'screens/idle_drafts.dart';
 import 'screens/login_screen.dart';
 import 'services/notifications.dart';
 import 'services/store.dart';
 import 'services/sync_config.dart';
 import 'services/window.dart';
 import 'stats.dart';
+import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final store = AppStore(prefs);
-  DesignDraft.load(store);
   final notifications = Notifications.instance;
   await notifications.init();
   notifications.sound = store.settings.sound;
@@ -96,7 +95,7 @@ class StudyTimerApp extends StatelessWidget {
       locale: const Locale('ko'),
       supportedLocales: const [Locale('ko')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
+      theme: appTheme(),
       home: ValueListenableBuilder<SyncConfig?>(
         valueListenable: SyncConfig.active,
         builder: (context, sync, _) =>

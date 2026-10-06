@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/store.dart';
 import '../stats.dart';
+import '../theme.dart';
 
 /// 집중 중 화면. 어두운 배경에 시간만 보이고, 화면을 누르거나 마우스를 움직이면
 /// 잠깐 동안 버튼과 딴생각 메모 칸이 나타났다가 다시 숨습니다.
@@ -19,7 +20,7 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> {
-  static const _dim = Color(0xFF8A8F98);
+  static const _dim = AppColors.dim;
   static const _hideAfter = Duration(seconds: 4);
 
   final _thought = TextEditingController();
@@ -77,90 +78,64 @@ class _FocusScreenState extends State<FocusScreen> {
     final thoughtsThisBlock = since == null
         ? 0
         : store.thoughts.where((n) => !n.createdAt.isBefore(since)).length;
-    const small = TextStyle(color: _dim, fontSize: 12);
-    final buttonStyle = OutlinedButton.styleFrom(
-      foregroundColor: _dim,
-      side: const BorderSide(color: Color(0xFF2A2F37)),
-    );
+    const small = TextStyle(color: _dim, fontSize: 13);
+    final link = TextButton.styleFrom(foregroundColor: _dim);
 
     final controls = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          '${t.stopwatch ? '스톱워치' : '집중 중'} · ${subject?.name ?? ''}'
-          '${t.isRunning ? '' : ' · 일시정지됨'}',
-          style: const TextStyle(color: _dim),
+          [
+            subject?.name ?? '',
+            if (!t.isRunning) '일시정지',
+            if (t.distractions > 0) '딴짓 ${t.distractions}회',
+          ].join(' · '),
+          style: const TextStyle(color: _dim, fontSize: 15),
         ),
-        if (t.distractions > 0) ...[
-          const SizedBox(height: 4),
-          Text(
-            '이번 블록 딴짓 ${t.distractions}회'
-            '${t.distractedSec > 0 ? ' · ${formatDuration(t.distractedSec)}' : ''}',
-            style: small.copyWith(color: const Color(0xFFB85C5C)),
-          ),
-        ],
-        const SizedBox(height: 24),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          alignment: WrapAlignment.center,
+        const SizedBox(height: 32),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutlinedButton.icon(
-              style: buttonStyle,
-              onPressed: t.isRunning ? store.pause : store.resume,
-              icon: Icon(t.isRunning ? Icons.pause : Icons.play_arrow),
-              label: Text(t.isRunning ? '일시정지' : '계속'),
+            _RoundButton(
+              label: t.isRunning ? '일시정지' : '계속',
+              onTap: t.isRunning ? store.pause : store.resume,
             ),
-            OutlinedButton.icon(
-              style: buttonStyle,
-              onPressed: store.finishFocus,
-              icon: const Icon(Icons.flag),
-              label: Text(t.stopwatch ? '끝내기' : '지금 끝내기'),
-            ),
-            if (widget.onMini != null)
-              OutlinedButton.icon(
-                style: buttonStyle,
-                onPressed: widget.onMini,
-                icon: const Icon(Icons.picture_in_picture_alt),
-                label: const Text('미니 타이머'),
-              ),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: _dim),
-              onPressed: () => _confirmCancel(context),
-              child: const Text('취소 (기록 안 함)'),
-            ),
+            const SizedBox(width: 32),
+            _RoundButton(label: '끝내기', onTap: store.finishFocus),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         TextField(
           controller: _thought,
           focusNode: _thoughtFocus,
-          style: const TextStyle(color: _dim),
+          style: const TextStyle(color: Colors.white70),
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _addThought(),
           onChanged: (_) => _scheduleHide(),
           decoration: InputDecoration(
-            labelText: '딴생각 메모',
-            labelStyle: const TextStyle(color: _dim),
-            hintText: '떠오른 할 일·걱정을 한 줄 적고 Enter',
+            hintText: thoughtsThisBlock == 0
+                ? '딴생각 메모 (적고 Enter, 휴식 때 보여 드려요)'
+                : '딴생각 메모 · 이번 블록 $thoughtsThisBlock개',
             hintStyle: const TextStyle(color: Color(0xFF555A62)),
-            helperText: thoughtsThisBlock == 0
-                ? '적어 두면 휴식 때 다시 보여 드려요.'
-                : '이번 블록 $thoughtsThisBlock개 적음 · 휴식 때 보여 드려요',
-            helperStyle: small,
-            enabledBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF2A2F37)),
-            ),
-            focusedBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: _dim),
-            ),
-            suffixIcon: IconButton(
-              tooltip: '메모 저장',
-              color: _dim,
-              icon: const Icon(Icons.add),
-              onPressed: _addThought,
-            ),
+            fillColor: const Color(0xFF111214),
           ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (widget.onMini != null)
+              TextButton(
+                style: link,
+                onPressed: widget.onMini,
+                child: const Text('미니 타이머'),
+              ),
+            TextButton(
+              style: link,
+              onPressed: () => _confirmCancel(context),
+              child: const Text('취소 (기록 안 함)'),
+            ),
+          ],
         ),
       ],
     );
@@ -183,13 +158,13 @@ class _FocusScreenState extends State<FocusScreen> {
                     children: [
                       Text(
                         formatClock(shownSec),
-                        style: Theme.of(context).textTheme.displayLarge
-                            ?.copyWith(
-                              color: _dim,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
+                        style: const TextStyle(
+                          color: _dim,
+                          fontSize: 96,
+                          fontWeight: FontWeight.w200,
+                          letterSpacing: -2,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
                       ),
                       const SizedBox(height: 24),
                       AnimatedOpacity(
@@ -231,4 +206,31 @@ class _FocusScreenState extends State<FocusScreen> {
     );
     if (ok == true) store.cancel();
   }
+}
+
+/// 어두운 화면의 동그란 버튼 (Apple 시계 앱 타이머 버튼 모양).
+class _RoundButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _RoundButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: const Color(0xFF1C1C1E),
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 15),
+          ),
+        ),
+      ),
+    ),
+  );
 }

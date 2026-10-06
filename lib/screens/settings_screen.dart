@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../services/notifications.dart';
 import '../services/store.dart';
 import '../services/sync_config.dart';
 import '../services/window.dart';
+import '../theme.dart';
 import '../version.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -168,6 +171,18 @@ class SettingsScreen extends StatelessWidget {
                           child: const Text('끄기'),
                         ),
                 ),
+              ),
+              ValueListenableBuilder<SyncConfig?>(
+                valueListenable: SyncConfig.active,
+                builder: (context, sync, _) => sync == null
+                    ? const SizedBox.shrink()
+                    : ListTile(
+                        title: const Text('로그아웃'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Supabase.instance.client.auth.signOut();
+                        },
+                      ),
               ),
               const Divider(),
               ListTile(title: const Text('버전'), trailing: Text(appVersion)),
@@ -389,7 +404,7 @@ class _Header extends StatelessWidget {
     child: Text(
       text,
       style: Theme.of(context).textTheme.labelLarge
-          ?.copyWith(color: Theme.of(context).colorScheme.primary),
+          ?.copyWith(color: AppColors.grey),
     ),
   );
 }

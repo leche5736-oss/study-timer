@@ -41,6 +41,9 @@ class ThoughtsList extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
             value: n.done,
+            side: textColor == null ? null : BorderSide(color: textColor!),
+            checkColor: textColor == null ? null : Colors.black,
+            activeColor: textColor,
             onChanged: (_) => store.toggleThought(n.id),
             title: Text(
               n.text,

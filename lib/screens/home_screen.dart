@@ -6,10 +6,8 @@ import '../models.dart';
 import '../services/store.dart';
 import '../services/sync.dart';
 import '../services/window.dart';
-import '../version.dart';
 import 'focus_screen.dart';
 import 'history_tab.dart';
-import 'idle_drafts.dart';
 import 'mini_timer.dart';
 import 'rest_screen.dart';
 import 'settings_screen.dart';
@@ -33,19 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   SyncService? _sync;
   bool _mini = false;
-
-  /// 시안을 타이머 탭에서 볼 때는 위아래 막대 색을 화면과 맞춥니다.
-  Color? get _chrome {
-    if (_tab != 0 || widget.store.timer.phase != Phase.idle) return null;
-    return switch (DesignDraft.value.value) {
-      1 => Colors.white,
-      2 => Colors.black,
-      3 => const Color(0xFFF2F2F7),
-      _ => null,
-    };
-  }
-
-  bool get _darkTop => _chrome == Colors.black;
 
   /// 미니 타이머는 Mac(다른 창 위에 뜸)과 웹(미리보기용)에서만.
   bool get _miniSupported => kIsWeb || AppWindow.isMac;
@@ -74,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final store = widget.store;
     return ListenableBuilder(
-      listenable: Listenable.merge([store, DesignDraft.value]),
+      listenable: store,
       builder: (context, _) {
         final phase = store.timer.phase;
         if (_mini) {
@@ -84,86 +69,99 @@ class _HomeScreenState extends State<HomeScreen> {
           // 집중이 끝나 정리 노트를 쓸 때는 원래 크기로 돌아갑니다.
           WidgetsBinding.instance.addPostFrameCallback((_) => _setMini(false));
         }
-        // 휴식 중에는 화면 전체를 조용한 휴식 화면으로 바꿉니다.
-        if (phase == Phase.rest) return RestScreen(store: store);
-        // 집중 중에는 어두운 화면에 시간만 보여줍니다.
-        if (phase == Phase.focus) {
-          return FocusScreen(
+        // 집중 중에는 어두운 화면에 시간만, 휴식 중에는 조용한 휴식 화면.
+        // 밝은 화면에서 천천히 어두워지며 넘어갑니다.
+        final Widget page = switch (phase) {
+          Phase.focus => FocusScreen(
             store: store,
             onMini: _miniSupported ? () => _setMini(true) : null,
-          );
-        }
-
-        final tabs = [
-          TimerTab(
-            store: store,
-            onGoToSubjects: () => setState(() => _tab = 1),
           ),
-          SubjectsTab(store: store),
-          StatsTab(store: store),
-          HistoryTab(store: store),
-        ];
-        return Scaffold(
-          appBar: AppBar(
-            // 시안을 보는 중이면 제목 없이 (미니멀).
-            title: DesignDraft.value.value == 0
-                ? const Text('공부 타이머 v$appVersion')
-                : null,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            backgroundColor: _chrome,
-            foregroundColor: _darkTop ? Colors.white70 : null,
-            actions: [
-              IconButton(
-                tooltip: '설정',
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SettingsScreen(store: store),
-                  ),
-                ),
+          Phase.rest => RestScreen(store: store),
+          _ => _home(context),
+        };
+        // 검은 바탕 위에서 이전 화면이 먼저 사라지고 새 화면이 나타납니다.
+        return ColoredBox(
+          color: Colors.black,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 900),
+            switchInCurve: const Interval(0.4, 1, curve: Curves.easeOut),
+            switchOutCurve: const Interval(0.4, 1, curve: Curves.easeIn),
+            child: KeyedSubtree(
+              key: ValueKey(
+                phase == Phase.idle || phase == Phase.recall ? 0 : phase.index,
               ),
-              if (_sync != null)
-                ValueListenableBuilder<String?>(
-                  valueListenable: _sync!.lastError,
-                  builder: (context, err, _) => IconButton(
-                    tooltip: err ?? '동기화됨',
-                    icon: Icon(
-                      err == null ? Icons.cloud_done : Icons.cloud_off,
-                      color: err == null ? null : Colors.red,
-                    ),
-                    onPressed: () {
-                      _sync!.pull();
-                      _sync!.push();
-                    },
-                  ),
-                ),
-              if (widget.client != null)
-                IconButton(
-                  tooltip: '로그아웃',
-                  icon: const Icon(Icons.logout),
-                  onPressed: () => widget.client!.auth.signOut(),
-                ),
-            ],
-          ),
-          body: SafeArea(child: tabs[_tab]),
-          bottomNavigationBar: NavigationBar(
-            backgroundColor: _chrome,
-            indicatorColor: _chrome == null
-                ? null
-                : (_darkTop ? Colors.white12 : Colors.black12),
-            selectedIndex: _tab,
-            onDestinationSelected: (i) => setState(() => _tab = i),
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.timer), label: '타이머'),
-              NavigationDestination(icon: Icon(Icons.book), label: '과목'),
-              NavigationDestination(icon: Icon(Icons.bar_chart), label: '통계'),
-              NavigationDestination(icon: Icon(Icons.history), label: '기록'),
-            ],
+              child: page,
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _home(BuildContext context) {
+    final store = widget.store;
+    final tabs = [
+      TimerTab(store: store, onGoToSubjects: () => setState(() => _tab = 1)),
+      SubjectsTab(store: store),
+      StatsTab(store: store),
+      HistoryTab(store: store),
+    ];
+    return Scaffold(
+      appBar: AppBar(
+        title: _tab == 0 ? null : Text(const ['', '과목', '통계', '기록'][_tab]),
+        actions: [
+          IconButton(
+            tooltip: '설정',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => SettingsScreen(store: store)),
+            ),
+          ),
+          if (_sync != null)
+            ValueListenableBuilder<String?>(
+              valueListenable: _sync!.lastError,
+              // 동기화가 안 될 때만 보입니다. 누르면 다시 시도.
+              builder: (context, err, _) => err == null
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                      tooltip: err,
+                      icon: const Icon(Icons.cloud_off, color: Colors.red),
+                      onPressed: () {
+                        _sync!.pull();
+                        _sync!.push();
+                      },
+                    ),
+            ),
+        ],
+      ),
+      body: SafeArea(child: tabs[_tab]),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.timer_outlined),
+            selectedIcon: Icon(Icons.timer),
+            label: '타이머',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.book_outlined),
+            selectedIcon: Icon(Icons.book),
+            label: '과목',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: '통계',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: '기록',
+          ),
+        ],
+      ),
     );
   }
 }

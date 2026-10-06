@@ -134,6 +134,7 @@ class _StatsTabState extends State<StatsTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SegmentedButton<StatsRange>(
+          showSelectedIcon: false,
           segments: [
             for (final r in StatsRange.values)
               ButtonSegment(value: r, label: Text(r.label)),
@@ -172,7 +173,7 @@ class _StatsTabState extends State<StatsTab> {
         Text(
           '$prevLabel 대비 ${diff >= 0 ? '+' : '-'}${formatHms(diff.abs())} '
           '(그때 ${formatHms(sum.previous)})',
-          style: TextStyle(color: diff >= 0 ? Colors.green[700] : Colors.red),
+          style: TextStyle(color: Theme.of(context).colorScheme.outline),
         ),
       ],
     );
@@ -606,6 +607,7 @@ class _StatsTabState extends State<StatsTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SegmentedButton<bool>(
+          showSelectedIcon: false,
           segments: const [
             ButtonSegment(value: false, label: Text('공부량')),
             ButtonSegment(value: true, label: Text('집중도')),
@@ -695,6 +697,7 @@ class _StatsTabState extends State<StatsTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SegmentedButton<TrendUnit>(
+          showSelectedIcon: false,
           segments: const [
             ButtonSegment(value: TrendUnit.day, label: Text('일별 (14일)')),
             ButtonSegment(value: TrendUnit.week, label: Text('주별 (8주)')),
