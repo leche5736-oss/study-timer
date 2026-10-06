@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_timer/main.dart';
+import 'package:study_timer/models.dart';
 import 'package:study_timer/services/store.dart';
 import 'package:study_timer/theme.dart';
 
@@ -26,12 +27,12 @@ void main() {
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
-    expect(find.text('0.8.3'), findsOneWidget);
+    expect(find.text('0.8.4'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('theme-sage')));
     await tester.pumpAndSettle();
     expect(store.settings.colorTheme, 'sage');
     expect(AppColors.accent, colorThemeById('sage').accent);
-    Navigator.of(tester.element(find.text('0.8.3'))).pop();
+    Navigator.of(tester.element(find.text('0.8.4'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('색 바꾸기'));
@@ -84,5 +85,25 @@ void main() {
     }
     // 기록이 적으면 분석 대신 얼마나 더 쌓아야 하는지 보여 줌
     expect(find.textContaining('더 쌓이면 볼 수 있어요'), findsNWidgets(3));
+  });
+
+  testWidgets('과목이 여러 개면 시작을 누른 뒤 과목을 고른다', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final store = AppStore(await SharedPreferences.getInstance());
+    store.addSubject('형법');
+    final b = store.addSubject('상법');
+    await tester.pumpWidget(StudyTimerApp(store: store));
+    expect(find.text('상법'), findsNothing); // 첫 화면에는 과목 이름이 없음
+
+    await tester.tap(find.text('시작'));
+    await tester.pumpAndSettle();
+    expect(find.text('무엇을 공부할까요?'), findsOneWidget);
+    await tester.tap(find.text('상법'));
+    await tester.pump();
+    expect(store.timer.phase, Phase.focus);
+    expect(store.timer.subjectId, b.id);
   });
 }

@@ -23,29 +23,65 @@ class IdleView extends StatefulWidget {
 }
 
 class _IdleViewState extends State<IdleView> {
-  String? _subjectId;
   late int _preset = widget.store.timer.presetIndex;
   late bool _stopwatch = widget.store.timer.stopwatch;
 
   AppStore get store => widget.store;
 
-  Subject get _subject {
-    final list = store.subjects;
-    return list.firstWhere(
-      (s) => s.id == _subjectId,
-      orElse: () => list.firstWhere(
-        (s) => s.id == store.timer.subjectId,
-        orElse: () => list.first,
-      ),
-    );
-  }
-
   Preset get _length => store.settings.presetAt(_preset);
 
-  void _start() {
+  /// 시작을 누르면 과목을 고르고 바로 시작합니다. 과목이 하나면 바로 시작.
+  Future<void> _start() async {
     Notifications.instance.requestWebPermission();
-    store.startFocus(_subject.id, _preset, stopwatch: _stopwatch);
+    final subjects = store.subjects;
+    final id = subjects.length == 1
+        ? subjects.single.id
+        : await _pickSubject(subjects);
+    if (id == null || !mounted) return;
+    store.startFocus(id, _preset, stopwatch: _stopwatch);
   }
+
+  Future<String?> _pickSubject(
+    List<Subject> subjects,
+  ) => showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    builder: (c) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(c).height * 0.7,
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: 8),
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(
+                '무엇을 공부할까요?',
+                style: TextStyle(color: AppColors.grey, fontSize: 15),
+              ),
+            ),
+            for (final s in subjects)
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                leading: CircleAvatar(radius: 7, backgroundColor: s.colorValue),
+                minLeadingWidth: 14,
+                title: Text(s.name, style: const TextStyle(fontSize: 17)),
+                // 지난번에 공부한 과목 표시
+                trailing: s.id == store.timer.subjectId
+                    ? const Text(
+                        '지난번',
+                        style: TextStyle(color: AppColors.grey, fontSize: 13),
+                      )
+                    : null,
+                onTap: () => Navigator.pop(c, s.id),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -76,107 +112,73 @@ class _IdleViewState extends State<IdleView> {
     final goal = store.settings.dailyGoalMin * 60;
     final open = store.openThoughts.length;
     final blocks = store.timer.blocksDone;
-    final subject = _subject;
     const grey = TextStyle(color: AppColors.grey, fontSize: 15);
 
-    return Column(
-      children: [
-        const SizedBox(height: 8),
-        Text(
-          goal > 0
-              ? '오늘 ${formatHms(today)} / ${formatHm(goal)}'
-              : '오늘 ${formatHms(today)}',
-          style: grey.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-        if (open > 0)
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.grey),
-            onPressed: _showThoughts,
-            child: Text('딴생각 메모 $open개'),
-          ),
-        const Spacer(),
-        GestureDetector(
-          onTap: _pickLength,
-          child: Text(
-            _stopwatch ? '00:00' : formatClock(_length.focusMin * 60),
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 96,
-              fontWeight: FontWeight.w200,
-              letterSpacing: -2,
-              fontFeatures: [FontFeature.tabularFigures()],
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Text(
+            goal > 0
+                ? '오늘 ${formatHms(today)} / ${formatHm(goal)}'
+                : '오늘 ${formatHms(today)}',
+            style: grey.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-        ),
-        GestureDetector(
-          onTap: _pickLength,
-          child: Text(
-            [
-              _stopwatch ? '스톱워치' : '휴식 ${_length.restMin}분',
-              if (blocks > 0) '$blocks블록 완료',
-            ].join(' · '),
-            style: grey,
-          ),
-        ),
-        const SizedBox(height: 40),
-        SizedBox(
-          height: 40,
-          child: Center(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  for (final s in store.subjects)
-                    GestureDetector(
-                      onTap: () => setState(() => _subjectId = s.id),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        child: Text(
-                          s.name,
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: s.id == subject.id
-                                ? AppColors.accent
-                                : AppColors.faint,
-                            fontWeight: s.id == subject.id
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+          if (open > 0)
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: AppColors.grey),
+              onPressed: _showThoughts,
+              child: Text('딴생각 메모 $open개'),
+            ),
+          const Spacer(),
+          GestureDetector(
+            onTap: _pickLength,
+            child: Text(
+              _stopwatch ? '00:00' : formatClock(_length.focusMin * 60),
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontSize: 96,
+                fontWeight: FontWeight.w200,
+                letterSpacing: -2,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 40),
-        Material(
-          color: AppColors.accent,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: _start,
-            child: const SizedBox(
-              width: 88,
-              height: 88,
-              child: Center(
-                child: Text(
-                  '시작',
-                  style: TextStyle(color: Colors.white, fontSize: 17),
+          GestureDetector(
+            onTap: _pickLength,
+            child: Text(
+              [
+                _stopwatch ? '스톱워치' : '휴식 ${_length.restMin}분',
+                if (blocks > 0) '$blocks블록 완료',
+              ].join(' · '),
+              style: grey,
+            ),
+          ),
+          const SizedBox(height: 56),
+          Material(
+            color: AppColors.accent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: _start,
+              child: const SizedBox(
+                width: 88,
+                height: 88,
+                child: Center(
+                  child: Text(
+                    '시작',
+                    style: TextStyle(color: Colors.white, fontSize: 17),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        const Spacer(),
-      ],
+          const Spacer(),
+        ],
+      ),
     );
   }
 
