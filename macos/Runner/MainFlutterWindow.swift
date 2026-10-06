@@ -58,6 +58,13 @@ class MainFlutterWindow: NSWindow {
         } else {
           result(FlutterError(code: "login", message: "macOS 13 이상에서만 돼요", details: nil))
         }
+      case "checkUpdate":
+        self.checkUpdate(result)
+      case "openURL":
+        if let s = call.arguments as? String, let url = URL(string: s) {
+          NSWorkspace.shared.open(url)
+        }
+        result(nil)
       case "setMini":
         self.setMini((call.arguments as? Bool) ?? false)
         result(nil)
@@ -166,5 +173,25 @@ class MainFlutterWindow: NSWindow {
       }
       frameBeforeMini = nil
     }
+  }
+
+  private static let latestRelease = URL(
+    string: "https://api.github.com/repos/leche5736-oss/study-timer/releases/latest")!
+
+  /// GitHub Releases의 최신 버전. {"version": "0.8.8", "page": 받는 페이지} 또는 nil.
+  private func checkUpdate(_ result: @escaping FlutterResult) {
+    var req = URLRequest(url: Self.latestRelease)
+    req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+    URLSession.shared.dataTask(with: req) { data, _, _ in
+      var out: [String: String]? = nil
+      if let data = data,
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let tag = json["tag_name"] as? String,
+        let page = json["html_url"] as? String
+      {
+        out = ["version": tag.hasPrefix("v") ? String(tag.dropFirst()) : tag, "page": page]
+      }
+      DispatchQueue.main.async { result(out) }
+    }.resume()
   }
 }

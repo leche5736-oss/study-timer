@@ -27,12 +27,12 @@ void main() {
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
-    expect(find.text('0.8.7'), findsOneWidget);
+    expect(find.text('0.8.8'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('theme-sage')));
     await tester.pumpAndSettle();
     expect(store.settings.colorTheme, 'sage');
     expect(AppColors.accent, colorThemeById('sage').accent);
-    Navigator.of(tester.element(find.text('0.8.7'))).pop();
+    Navigator.of(tester.element(find.text('0.8.8'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('색 바꾸기'));

@@ -6,6 +6,7 @@ import 'package:study_timer/main.dart';
 import 'package:study_timer/models.dart';
 import 'package:study_timer/services/notifications.dart';
 import 'package:study_timer/services/store.dart';
+import 'package:study_timer/services/updater.dart';
 import 'package:study_timer/timer_logic.dart';
 
 void main() {
@@ -109,5 +110,13 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await tester.pump();
     expect(store.timer.isRunning, isTrue);
+  });
+
+  test('새 버전 비교', () {
+    expect(Updater.isNewer('0.8.8', '0.8.7'), isTrue);
+    expect(Updater.isNewer('0.8.10', '0.8.9'), isTrue);
+    expect(Updater.isNewer('0.9.0', '0.8.12'), isTrue);
+    expect(Updater.isNewer('0.8.7', '0.8.7'), isFalse);
+    expect(Updater.isNewer('0.8.6', '0.8.7'), isFalse);
   });
 }

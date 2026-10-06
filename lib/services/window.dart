@@ -44,6 +44,18 @@ class AppWindow {
       .invokeMethod('setLaunchAtLogin', on)
       .then((_) {}); // 실패하면 예외를 그대로 알려 줍니다.
 
+  /// GitHub Releases의 최신 버전과 받는 페이지 주소.
+  static Future<({String version, String page})?> checkUpdate() async {
+    final r = await _call('checkUpdate');
+    if (r is! Map) return null;
+    final v = r['version'], page = r['page'];
+    if (v is! String || page is! String) return null;
+    return (version: v, page: page);
+  }
+
+  /// 기본 브라우저로 주소를 엽니다.
+  static Future<void> openURL(String url) => _call('openURL', url);
+
   /// 지금 켜져 있는 앱 이름 목록.
   static Future<List<String>> runningApps() async =>
       ((await _call('runningApps')) as List?)?.cast<String>() ?? const [];

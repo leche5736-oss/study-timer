@@ -12,6 +12,7 @@ import 'services/notifications.dart';
 import 'services/page_color.dart';
 import 'services/store.dart';
 import 'services/sync_config.dart';
+import 'services/updater.dart';
 import 'services/window.dart';
 import 'stats.dart';
 import 'theme.dart';
@@ -55,6 +56,7 @@ Future<void> main() async {
     );
   }
 
+  Updater.start();
   store.addListener(updateMenuBar);
   Timer.periodic(const Duration(minutes: 1), (_) => updateMenuBar());
   updateMenuBar();

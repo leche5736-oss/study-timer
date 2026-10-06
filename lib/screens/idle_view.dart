@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/notifications.dart';
 import '../services/store.dart';
+import '../services/updater.dart';
 import '../stats.dart';
 import '../theme.dart';
 import 'space_key.dart';
@@ -92,6 +93,19 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
             style: grey.copyWith(
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
+          ),
+          // Mac 앱: 새 버전이 나오면 알려 줍니다.
+          ValueListenableBuilder(
+            valueListenable: Updater.available,
+            builder: (context, update, _) => update == null
+                ? const SizedBox.shrink()
+                : TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.accent,
+                    ),
+                    onPressed: Updater.openDownload,
+                    child: Text('새 버전 ${update.version} 받기'),
+                  ),
           ),
           if (open > 0)
             TextButton(
