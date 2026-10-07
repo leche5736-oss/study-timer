@@ -40,6 +40,10 @@
 1. **https://github.com/leche5736-oss/study-timer/releases/latest** 에서 `StudyTimer-mac.zip`을 받습니다.
 2. 압축을 풀면 나오는 **공부 타이머** 앱을 **응용 프로그램** 폴더로 끌어다 놓습니다 (이전 버전이 있으면 대치).
 3. 처음 열 때 "Apple이 확인할 수 없다"는 경고가 나오면: **시스템 설정 > 개인정보 보호 및 보안** 맨 아래에서 **그래도 열기**를 누릅니다. 새 버전을 받을 때마다 한 번씩 필요할 수 있습니다.
+4. **Dock에서 아이콘만 계속 튀고 열리지 않으면** (새 macOS에서 생길 수 있음): Mac을 재시동한 뒤 터미널에 아래를 붙여 넣고 Enter. 새 버전을 받을 때마다 필요할 수 있습니다.
+   ```bash
+   xattr -cr /Applications/*타이머*.app; codesign --force --deep -s - /Applications/*타이머*.app; open /Applications/*타이머*.app
+   ```
 
 앱 파일은 코드가 바뀔 때마다 GitHub의 클라우드 Mac에서 자동으로 만들어집니다. 기록은 Mac 안에 저장되어 있어서 새 버전으로 바꿔도 그대로 남습니다.
 
