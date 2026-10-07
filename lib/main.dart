@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +8,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/notifications.dart';
-import 'services/page_color.dart';
 import 'services/store.dart';
 import 'services/sync_config.dart';
 import 'services/updater.dart';
@@ -103,9 +101,6 @@ class StudyTimerApp extends StatelessWidget {
         supportedLocales: const [Locale('ko')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         theme: themeFor(store.settings.colorTheme),
-        builder: kIsWeb
-            ? (context, child) => _WebSafeArea(child: child!)
-            : null,
         home: ValueListenableBuilder<SyncConfig?>(
           valueListenable: SyncConfig.active,
           builder: (context, sync, _) =>
@@ -130,65 +125,6 @@ class AuthGate extends StatelessWidget {
         if (auth.currentSession == null) return LoginScreen(store: store);
         return HomeScreen(store: store, client: Supabase.instance.client);
       },
-    );
-  }
-}
-
-/// 웹(아이폰 홈 화면 앱): 화면이 상태 막대 뒤까지 그려지므로, 가려지는 여백을
-/// MediaQuery에 넣어 SafeArea가 시간·버튼을 그 아래로 내리게 합니다.
-class _WebSafeArea extends StatefulWidget {
-  final Widget child;
-  const _WebSafeArea({required this.child});
-
-  @override
-  State<_WebSafeArea> createState() => _WebSafeAreaState();
-}
-
-class _WebSafeAreaState extends State<_WebSafeArea>
-    with WidgetsBindingObserver {
-  EdgeInsets _inset = webSafeArea();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    // viewport 설정이 바뀐 뒤 여백이 반영되기까지 잠깐 걸립니다.
-    for (final ms in [300, 1500]) {
-      Future.delayed(Duration(milliseconds: ms), _measure);
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() => _measure();
-
-  void _measure() {
-    if (!mounted) return;
-    final next = webSafeArea();
-    if (next != _inset) setState(() => _inset = next);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_inset == EdgeInsets.zero) return widget.child;
-    final mq = MediaQuery.of(context);
-    EdgeInsets add(EdgeInsets e) => EdgeInsets.fromLTRB(
-      e.left,
-      e.top > _inset.top ? e.top : _inset.top,
-      e.right,
-      e.bottom > _inset.bottom ? e.bottom : _inset.bottom,
-    );
-    return MediaQuery(
-      data: mq.copyWith(
-        padding: add(mq.padding),
-        viewPadding: add(mq.viewPadding),
-      ),
-      child: widget.child,
     );
   }
 }
