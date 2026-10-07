@@ -176,6 +176,54 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
       ],
     );
 
+    final size = MediaQuery.sizeOf(context);
+    final landscape = size.width > size.height && size.height < 520;
+    Widget clock(double fontSize) => Text(
+      formatClock(shownSec),
+      style: TextStyle(
+        color: _dim,
+        fontSize: fontSize,
+        fontWeight: FontWeight.w200,
+        letterSpacing: -2,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+
+    // 가로 화면(폰을 눕힘): 평소엔 큰 시간만, 누르면 시간 옆에 버튼이 나옵니다.
+    final Widget content = landscape
+        ? (visible
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    clock(96),
+                    const SizedBox(width: 48),
+                    SizedBox(width: 340, child: controls),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    clock(140),
+                    Text('화면을 누르면 버튼이 나와요', style: small),
+                  ],
+                ))
+        : ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                clock(96),
+                const SizedBox(height: 24),
+                AnimatedOpacity(
+                  opacity: visible ? 1 : 0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(ignoring: !visible, child: controls),
+                ),
+                if (!visible) Text('화면을 누르면 버튼이 나와요', style: small),
+              ],
+            ),
+          );
+
     return Scaffold(
       backgroundColor: AppColors.night,
       body: GestureDetector(
@@ -185,31 +233,7 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      formatClock(shownSec),
-                      style: TextStyle(
-                        color: _dim,
-                        fontSize: 96,
-                        fontWeight: FontWeight.w200,
-                        letterSpacing: -2,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    AnimatedOpacity(
-                      opacity: visible ? 1 : 0,
-                      duration: const Duration(milliseconds: 300),
-                      child: IgnorePointer(ignoring: !visible, child: controls),
-                    ),
-                    if (!visible) Text('화면을 누르면 버튼이 나와요', style: small),
-                  ],
-                ),
-              ),
+              child: content,
             ),
           ),
         ),

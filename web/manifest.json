@@ -6,7 +6,7 @@
     "background_color": "#FFFFFF",
     "theme_color": "#FFFFFF",
     "description": "뇌과학 기반 공부 타이머",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

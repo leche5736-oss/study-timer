@@ -81,6 +81,52 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
     final blocks = store.timer.blocksDone;
     const grey = TextStyle(color: AppColors.grey, fontSize: 15);
 
+    final clock = <Widget>[
+      GestureDetector(
+        onTap: _pickLength,
+        child: Text(
+          _stopwatch ? '00:00' : formatClock(_length.focusMin * 60),
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 96,
+            fontWeight: FontWeight.w200,
+            letterSpacing: -2,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+      ),
+      GestureDetector(
+        onTap: _pickLength,
+        child: Text(
+          [
+            _stopwatch ? '스톱워치' : '휴식 ${_length.restMin}분',
+            if (blocks > 0) '$blocks블록 완료',
+          ].join(' · '),
+          style: grey,
+        ),
+      ),
+    ];
+    final start = Material(
+      color: AppColors.accent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: _start,
+        child: const SizedBox(
+          width: 88,
+          height: 88,
+          child: Center(
+            child: Text(
+              '시작',
+              style: TextStyle(color: Colors.white, fontSize: 17),
+            ),
+          ),
+        ),
+      ),
+    );
+    final size = MediaQuery.sizeOf(context);
+    final landscape = size.width > size.height && size.height < 520;
+
     return SizedBox(
       width: double.infinity,
       child: Column(
@@ -114,48 +160,21 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
               child: Text('딴생각 메모 $open개'),
             ),
           const Spacer(),
-          GestureDetector(
-            onTap: _pickLength,
-            child: Text(
-              _stopwatch ? '00:00' : formatClock(_length.focusMin * 60),
-              style: const TextStyle(
-                color: AppColors.ink,
-                fontSize: 96,
-                fontWeight: FontWeight.w200,
-                letterSpacing: -2,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: _pickLength,
-            child: Text(
-              [
-                _stopwatch ? '스톱워치' : '휴식 ${_length.restMin}분',
-                if (blocks > 0) '$blocks블록 완료',
-              ].join(' · '),
-              style: grey,
-            ),
-          ),
-          const SizedBox(height: 56),
-          Material(
-            color: AppColors.accent,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: _start,
-              child: const SizedBox(
-                width: 88,
-                height: 88,
-                child: Center(
-                  child: Text(
-                    '시작',
-                    style: TextStyle(color: Colors.white, fontSize: 17),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // 가로 화면(폰을 눕힘)에서는 시간과 시작 버튼을 옆으로 나란히.
+          if (landscape)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Column(mainAxisSize: MainAxisSize.min, children: clock),
+                const SizedBox(width: 64),
+                start,
+              ],
+            )
+          else ...[
+            ...clock,
+            const SizedBox(height: 56),
+            start,
+          ],
           const Spacer(),
         ],
       ),
