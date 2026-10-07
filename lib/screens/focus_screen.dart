@@ -8,6 +8,7 @@ import '../stats.dart';
 import '../theme.dart';
 import 'space_key.dart';
 import 'subject_picker.dart';
+import 'tilt_rotate.dart';
 
 /// 집중 중 화면. 어두운 배경에 시간만 보이고, 화면을 누르거나 클릭하면
 /// 잠깐 동안 버튼과 딴생각 메모 칸이 나타났다가 다시 숨습니다.
@@ -176,66 +177,78 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
       ],
     );
 
-    final size = MediaQuery.sizeOf(context);
-    final landscape = size.width > size.height && size.height < 520;
+    // 한 시간이 넘으면(1:05:09) 글자가 길어지니 조금 작게.
+    final clockScale = shownSec >= 3600 ? 0.72 : 1.0;
     Widget clock(double fontSize) => Text(
       formatClock(shownSec),
       style: TextStyle(
         color: _dim,
-        fontSize: fontSize,
+        fontSize: fontSize * clockScale,
         fontWeight: FontWeight.w200,
         letterSpacing: -2,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
 
-    // 가로 화면(폰을 눕힘): 평소엔 큰 시간만, 누르면 시간 옆에 버튼이 나옵니다.
-    final Widget content = landscape
-        ? (visible
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    clock(96),
-                    const SizedBox(width: 48),
-                    SizedBox(width: 340, child: controls),
-                  ],
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    clock(140),
-                    Text('화면을 누르면 버튼이 나와요', style: small),
-                  ],
-                ))
-        : ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                clock(96),
-                const SizedBox(height: 24),
-                AnimatedOpacity(
-                  opacity: visible ? 1 : 0,
-                  duration: const Duration(milliseconds: 300),
-                  child: IgnorePointer(ignoring: !visible, child: controls),
-                ),
-                if (!visible) Text('화면을 누르면 버튼이 나와요', style: small),
-              ],
-            ),
-          );
-
     return Scaffold(
       backgroundColor: AppColors.night,
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _reveal,
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: content,
-            ),
-          ),
+      // 세로 화면 잠금을 켜 둔 아이폰에서도 눕히면 가로로 돌려 그립니다.
+      body: TiltRotate(
+        child: Builder(
+          builder: (context) {
+            final size = MediaQuery.sizeOf(context);
+            final landscape = size.width > size.height && size.height < 520;
+            // 가로 화면(폰을 눕힘): 평소엔 큰 시간만, 누르면 시간 옆에 버튼이 나옵니다.
+            final Widget content = landscape
+                ? (visible
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            clock(96),
+                            const SizedBox(width: 48),
+                            SizedBox(width: 340, child: controls),
+                          ],
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            clock(140),
+                            Text('화면을 누르면 버튼이 나와요', style: small),
+                          ],
+                        ))
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        clock(96),
+                        const SizedBox(height: 24),
+                        AnimatedOpacity(
+                          opacity: visible ? 1 : 0,
+                          duration: const Duration(milliseconds: 300),
+                          child: IgnorePointer(
+                            ignoring: !visible,
+                            child: controls,
+                          ),
+                        ),
+                        if (!visible) Text('화면을 누르면 버튼이 나와요', style: small),
+                      ],
+                    ),
+                  );
+
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _reveal,
+              child: SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: content,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

@@ -109,9 +109,13 @@ String formatHm(int seconds) {
 
 String formatClock(int seconds) {
   if (seconds < 0) seconds = 0;
+  final h = seconds ~/ 3600;
   final m = seconds ~/ 60;
   final s = seconds % 60;
-  return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  String two(int v) => v.toString().padLeft(2, '0');
+  // 한 시간이 넘으면 1:05:09 처럼 시간을 앞에 붙입니다.
+  if (h > 0) return '$h:${two(m % 60)}:${two(s)}';
+  return '${two(m)}:${two(s)}';
 }
 
 // ---------- 오늘 목표 ----------

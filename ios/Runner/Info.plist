@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMotionUsageDescription</key>
+	<string>화면 회전 잠금 중에도 폰을 눕히면 타이머를 가로로 보여 주려고 기울기를 읽어요.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIFileSharingEnabled</key>

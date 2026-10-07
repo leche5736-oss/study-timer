@@ -154,6 +154,9 @@ const presets = [
 /// 설정 화면에서 정한 길이를 쓰는 프리셋 번호.
 const customPresetIndex = 3;
 
+/// 긴 시간을 한 번에 재는 타이머 (예: 3시간 30분). 휴식 단계가 없습니다.
+const timerPresetIndex = 4;
+
 /// 스톱워치 모드의 휴식 길이: 집중한 시간의 1/5, 5~30분.
 int stopwatchRestMin(int focusedSec) =>
     (focusedSec / 60 / 5).round().clamp(5, 30);
@@ -185,6 +188,9 @@ class Settings {
   final List<String> blockedApps; // 딴짓 앱 이름 목록
   final bool menuBar; // Mac: 메뉴 막대에 남은 시간 표시
   final String colorTheme; // 앱 색 테마 (theme.dart의 colorThemes id)
+  final int timerMin; // 타이머 모드 길이 (분)
+  /// 기기끼리 맞추는 설정(목표·길이·하루 시작 시각)을 마지막으로 바꾼 시각.
+  final DateTime? sharedUpdatedAt;
 
   const Settings({
     this.dailyGoalMin = 180,
@@ -198,6 +204,8 @@ class Settings {
     this.blockedApps = const [],
     this.menuBar = true,
     this.colorTheme = 'blue',
+    this.timerMin = 210,
+    this.sharedUpdatedAt,
   });
 
   Preset get customPreset => Preset(
@@ -207,8 +215,11 @@ class Settings {
     customLongRestMin,
   );
 
-  Preset presetAt(int index) =>
-      index == customPresetIndex ? customPreset : presets[index];
+  Preset presetAt(int index) => switch (index) {
+    customPresetIndex => customPreset,
+    timerPresetIndex => Preset('타이머', timerMin, 0, 0),
+    _ => presets[index.clamp(0, presets.length - 1)],
+  };
 
   Settings copyWith({
     int? dailyGoalMin,
@@ -222,6 +233,8 @@ class Settings {
     List<String>? blockedApps,
     bool? menuBar,
     String? colorTheme,
+    int? timerMin,
+    DateTime? sharedUpdatedAt,
   }) => Settings(
     dailyGoalMin: dailyGoalMin ?? this.dailyGoalMin,
     customFocusMin: customFocusMin ?? this.customFocusMin,
@@ -234,7 +247,41 @@ class Settings {
     blockedApps: blockedApps ?? this.blockedApps,
     menuBar: menuBar ?? this.menuBar,
     colorTheme: colorTheme ?? this.colorTheme,
+    timerMin: timerMin ?? this.timerMin,
+    sharedUpdatedAt: sharedUpdatedAt ?? this.sharedUpdatedAt,
   );
+
+  /// 기기끼리 맞추는 설정만 (동기화용).
+  Map<String, dynamic> sharedJson() => {
+    'daily_goal_min': dailyGoalMin,
+    'custom_focus_min': customFocusMin,
+    'custom_rest_min': customRestMin,
+    'custom_long_rest_min': customLongRestMin,
+    'day_start_hour': dayStartHour,
+    'timer_min': timerMin,
+    'shared_updated_at': sharedUpdatedAt?.toIso8601String(),
+  };
+
+  /// 다른 기기에서 받은 공유 설정을 덮어씁니다. 이 기기 전용 설정은 그대로.
+  Settings withShared(Map<String, dynamic> j) {
+    final r = Settings.fromJson({...toJson(), ...j});
+    return copyWith(
+      dailyGoalMin: r.dailyGoalMin,
+      customFocusMin: r.customFocusMin,
+      customRestMin: r.customRestMin,
+      customLongRestMin: r.customLongRestMin,
+      dayStartHour: r.dayStartHour,
+      timerMin: r.timerMin,
+      sharedUpdatedAt: r.sharedUpdatedAt,
+    );
+  }
+
+  /// 공유 설정 중 하나라도 다르면 true.
+  bool sharedDiffers(Settings o) {
+    final a = sharedJson()..remove('shared_updated_at');
+    final b = o.sharedJson()..remove('shared_updated_at');
+    return a.toString() != b.toString();
+  }
 
   Map<String, dynamic> toJson() => {
     'daily_goal_min': dailyGoalMin,
@@ -248,6 +295,8 @@ class Settings {
     'blocked_apps': blockedApps,
     'menu_bar': menuBar,
     'color_theme': colorTheme,
+    'timer_min': timerMin,
+    'shared_updated_at': sharedUpdatedAt?.toIso8601String(),
   };
 
   factory Settings.fromJson(Map<String, dynamic> j) {
@@ -267,6 +316,10 @@ class Settings {
           (j['blocked_apps'] as List?)?.cast<String>() ?? d.blockedApps,
       menuBar: j['menu_bar'] as bool? ?? d.menuBar,
       colorTheme: j['color_theme'] as String? ?? d.colorTheme,
+      timerMin: (j['timer_min'] as num?)?.toInt() ?? d.timerMin,
+      sharedUpdatedAt: DateTime.tryParse(
+        j['shared_updated_at'] as String? ?? '',
+      ),
     );
   }
 }

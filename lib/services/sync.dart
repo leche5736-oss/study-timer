@@ -94,7 +94,11 @@ class SyncService {
       if (sessions.isNotEmpty) await client.from('sessions').upsert(sessions);
       await client.from('timer_state').upsert({
         'user_id': uid,
-        'data': store.timer.toJson(),
+        // 하루 목표 같은 공유 설정도 타이머 상태와 함께 보냅니다 (표를 따로 만들지 않으려고).
+        'data': {
+          ...store.timer.toJson(),
+          'settings': store.settings.sharedJson(),
+        },
         'updated_at': store.timer.updatedAt.toIso8601String(),
       });
       _pushedUpTo = startedAt.subtract(const Duration(seconds: 1));
@@ -126,6 +130,10 @@ class SyncService {
         timer: timer == null
             ? null
             : TimerState.fromJson(timer['data'] as Map<String, dynamic>),
+        settings: timer == null
+            ? null
+            : (timer['data'] as Map<String, dynamic>)['settings']
+                  as Map<String, dynamic>?,
       );
       lastError.value = null;
     } catch (e) {

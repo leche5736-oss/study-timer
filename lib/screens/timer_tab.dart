@@ -105,7 +105,11 @@ class _RecallViewState extends State<_RecallView> {
                 rating: _rating,
                 note: _note.text.trim(),
               ),
-              child: const Text('저장하고 휴식'),
+              child: Text(
+                !t.stopwatch && t.presetIndex == timerPresetIndex
+                    ? '저장하고 마치기'
+                    : '저장하고 휴식',
+              ),
             ),
           ],
         ),

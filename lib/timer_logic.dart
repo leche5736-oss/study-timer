@@ -147,8 +147,12 @@ class TimerLogic {
   }) {
     assert(s.phase == Phase.recall);
     final focused = s.completedFocusSec ?? 0;
+    final timerMode = !s.stopwatch && s.presetIndex == timerPresetIndex;
     // 정한 집중 시간을 끝까지 채운 블록만 셉니다 (스톱워치·일찍 끝낸 블록은 제외).
-    final full = !s.stopwatch && s.blockPriorSec + focused >= s.focusMin * 60;
+    final full =
+        !s.stopwatch &&
+        !timerMode &&
+        s.blockPriorSec + focused >= s.focusMin * 60;
     final blocks = s.blocksDone + (full ? 1 : 0);
     final longRest = full && blocks % blocksPerLongRest == 0;
     final restMin = s.stopwatch
@@ -167,6 +171,8 @@ class TimerLogic {
       distractedSeconds: s.distractedSec,
       updatedAt: now,
     );
+    // 타이머 모드는 휴식 없이 바로 끝납니다.
+    if (timerMode) return (session, toIdle(s, now));
     final next = TimerState(
       phase: Phase.rest,
       subjectId: s.subjectId,

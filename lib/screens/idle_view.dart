@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models.dart';
@@ -38,6 +39,7 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
   AppStore get store => widget.store;
 
   Preset get _length => store.settings.presetAt(_preset);
+  bool get _timerMode => !_stopwatch && _preset == timerPresetIndex;
 
   /// 시작을 누르면 과목을 고르고 바로 시작합니다. 과목이 하나면 바로 시작.
   Future<void> _start() async {
@@ -84,14 +86,17 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
     final clock = <Widget>[
       GestureDetector(
         onTap: _pickLength,
-        child: Text(
-          _stopwatch ? '00:00' : formatClock(_length.focusMin * 60),
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontSize: 96,
-            fontWeight: FontWeight.w200,
-            letterSpacing: -2,
-            fontFeatures: [FontFeature.tabularFigures()],
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            _stopwatch ? '00:00' : formatClock(_length.focusMin * 60),
+            style: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 96,
+              fontWeight: FontWeight.w200,
+              letterSpacing: -2,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
           ),
         ),
       ),
@@ -99,7 +104,11 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
         onTap: _pickLength,
         child: Text(
           [
-            _stopwatch ? '스톱워치' : '휴식 ${_length.restMin}분',
+            _stopwatch
+                ? '스톱워치'
+                : _timerMode
+                ? '타이머 · 휴식 없이'
+                : '휴식 ${_length.restMin}분',
             if (blocks > 0) '$blocks블록 완료',
           ].join(' · '),
           style: grey,
@@ -212,6 +221,19 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
                 },
               ),
             ListTile(
+              title: const Text('타이머'),
+              subtitle: Text(
+                '${_hm(settings.timerMin)} · 휴식 없이 한 번에 (눌러서 길이 바꾸기)',
+              ),
+              trailing: _timerMode
+                  ? Icon(Icons.check, color: AppColors.accent)
+                  : null,
+              onTap: () {
+                Navigator.pop(c);
+                _pickTimerLength();
+              },
+            ),
+            ListTile(
               title: const Text('스톱워치'),
               subtitle: const Text('시간 제한 없이, 집중한 시간의 1/5만큼 휴식'),
               trailing: _stopwatch
@@ -237,6 +259,52 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
         ),
       ),
     );
+  }
+
+  static String _hm(int min) => [
+    if (min >= 60) '${min ~/ 60}시간',
+    if (min % 60 > 0 || min < 60) '${min % 60}분',
+  ].join(' ');
+
+  /// 타이머 길이 고르기 (시간·분 돌림판).
+  Future<void> _pickTimerLength() async {
+    var picked = Duration(minutes: store.settings.timerMin);
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 216,
+              child: CupertinoTimerPicker(
+                mode: CupertinoTimerPickerMode.hm,
+                initialTimerDuration: picked,
+                onTimerDurationChanged: (d) => picked = d,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: FilledButton(
+                key: const Key('timer-length-ok'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                onPressed: () => Navigator.pop(c, true),
+                child: const Text('이 길이로'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final min = picked.inMinutes.clamp(1, 12 * 60);
+    store.updateSettings(store.settings.copyWith(timerMin: min));
+    setState(() {
+      _preset = timerPresetIndex;
+      _stopwatch = false;
+    });
   }
 
   Future<void> _showThoughts() => showModalBottomSheet<void>(

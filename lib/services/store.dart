@@ -253,9 +253,13 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
+  /// 목표·길이처럼 기기끼리 맞추는 설정이 바뀌면 다른 기기에도 보냅니다.
   void updateSettings(Settings settings) {
-    _settings = settings;
-    _changed(local: false);
+    final shared = settings.sharedDiffers(_settings);
+    _settings = shared
+        ? settings.copyWith(sharedUpdatedAt: DateTime.now().toUtc())
+        : settings;
+    _changed(local: shared);
   }
 
   // ---------- 딴생각 메모 ----------
@@ -382,8 +386,17 @@ class AppStore extends ChangeNotifier {
     Iterable<Subject> subjects = const [],
     Iterable<StudySession> sessions = const [],
     TimerState? timer,
+    Map<String, dynamic>? settings,
   }) {
     var changed = false;
+    final remoteAt = DateTime.tryParse(
+      settings?['shared_updated_at'] as String? ?? '',
+    );
+    final localAt = _settings.sharedUpdatedAt;
+    if (remoteAt != null && (localAt == null || remoteAt.isAfter(localAt))) {
+      _settings = _settings.withShared(settings!);
+      changed = true;
+    }
     for (final s in subjects) {
       final local = _subjects[s.id];
       if (local == null || s.updatedAt.isAfter(local.updatedAt)) {
