@@ -1,1 +1,3 @@
 #include "Generated.xcconfig"
+// 내 Apple 개발 팀 (scripts/install_iphone.sh가 만듭니다, git에 올리지 않음)
+#include? "Team.xcconfig"

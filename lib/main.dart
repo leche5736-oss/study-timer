@@ -10,6 +10,7 @@ import 'screens/login_screen.dart';
 import 'services/notifications.dart';
 import 'services/store.dart';
 import 'services/sync_config.dart';
+import 'services/live_activity.dart';
 import 'services/updater.dart';
 import 'services/window.dart';
 import 'stats.dart';
@@ -56,6 +57,12 @@ Future<void> main() async {
 
   Updater.start();
   store.addListener(updateMenuBar);
+  void updateLiveActivity() => LiveActivity.sync(
+    store.timer,
+    store.subject(store.timer.subjectId)?.name,
+  );
+  store.addListener(updateLiveActivity);
+  updateLiveActivity();
   Timer.periodic(const Duration(minutes: 1), (_) => updateMenuBar());
   updateMenuBar();
   store.tick(); // 앱이 꺼져 있던 동안 끝난 단계 정리

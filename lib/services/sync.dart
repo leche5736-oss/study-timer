@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
@@ -15,6 +15,7 @@ class SyncService {
   final AppStore store;
   final SupabaseClient client;
   RealtimeChannel? _channel;
+  AppLifecycleListener? _lifecycle;
   Timer? _debounce;
   bool _pushing = false;
   bool _pendingPush = false;
@@ -30,6 +31,8 @@ class SyncService {
     store.onLocalChange = _schedulePush;
     await pull();
     await push();
+    // 폰에서 앱이 뒤에 숨어 있는 동안은 실시간 알림을 못 받으니, 다시 열면 바로 받아 옵니다.
+    _lifecycle = AppLifecycleListener(onResume: () => unawaited(pull()));
     _channel = client
         .channel('study-sync')
         .onPostgresChanges(
@@ -56,6 +59,8 @@ class SyncService {
   Future<void> stop() async {
     store.onLocalChange = null;
     _debounce?.cancel();
+    _lifecycle?.dispose();
+    _lifecycle = null;
     if (_channel != null) await client.removeChannel(_channel!);
     _channel = null;
   }
