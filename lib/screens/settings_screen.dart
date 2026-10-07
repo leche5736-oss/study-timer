@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config.dart';
 import '../services/notifications.dart';
 import '../services/store.dart';
 import '../services/sync_config.dart';
@@ -214,8 +215,8 @@ class SettingsScreen extends StatelessWidget {
 extension on SettingsScreen {
   /// Supabase 주소와 키를 받아 동기화를 켭니다.
   Future<void> _connectSync(BuildContext context) async {
-    final url = TextEditingController();
-    final key = TextEditingController();
+    final url = TextEditingController(text: AppConfig.supabaseUrl);
+    final key = TextEditingController(text: AppConfig.supabasePublishableKey);
     String? error;
     var busy = false;
     await showDialog<void>(

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_timer/models.dart';
+import 'package:study_timer/config.dart';
 import 'package:study_timer/services/sync_config.dart';
 
 void main() {
@@ -15,11 +16,19 @@ void main() {
   test('동기화 주소가 잘못되면 저장하지 않는다', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    expect(SyncConfig.load(prefs), isNull);
+    // 처음에는 앱에 들어 있는 기본 연결을 씁니다.
+    expect(SyncConfig.load(prefs)!.url, AppConfig.supabaseUrl);
     await expectLater(
       SyncConfig.connect(prefs, 'xxxx.supabase.co', 'key'),
       throwsFormatException,
     );
+    expect(SyncConfig.load(prefs)!.url, AppConfig.supabaseUrl);
+  });
+
+  test('동기화를 끄면 기본 연결도 쓰지 않는다', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await SyncConfig.disconnect(prefs);
     expect(SyncConfig.load(prefs), isNull);
   });
 

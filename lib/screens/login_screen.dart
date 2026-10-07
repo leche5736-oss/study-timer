@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
             shrinkWrap: true,
             padding: const EdgeInsets.all(24),
             children: [
-              const Text('여러 기기에서 같은 기록을 보려면 같은 계정으로 로그인하세요.'),
+              const Text('Mac, iPhone에서 같은 이메일로 로그인하면 기록과 타이머가 함께 보여요.'),
               const SizedBox(height: 16),
               TextField(
                 controller: _email,

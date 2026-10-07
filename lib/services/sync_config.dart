@@ -10,6 +10,7 @@ import '../config.dart';
 /// config.dart에 값이 들어 있으면 그것을 먼저 씁니다.
 class SyncConfig {
   static const _key = 'sync_config';
+  static const _offKey = 'sync_off'; // 기본 연결을 사용자가 끈 경우
 
   final String url;
   final String publishableKey;
@@ -21,17 +22,21 @@ class SyncConfig {
   static bool _initialized = false;
   static String? _initializedUrl;
 
+  /// 직접 넣은 연결 정보가 있으면 그것을, 없으면 앱에 들어 있는 기본 연결을 씁니다.
   static SyncConfig? load(SharedPreferences prefs) {
+    final raw = prefs.getString(_key);
+    if (raw != null) {
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      return SyncConfig(j['url'] as String, j['key'] as String);
+    }
+    if (prefs.getBool(_offKey) ?? false) return null;
     if (AppConfig.syncEnabled) {
       return const SyncConfig(
         AppConfig.supabaseUrl,
         AppConfig.supabasePublishableKey,
       );
     }
-    final raw = prefs.getString(_key);
-    if (raw == null) return null;
-    final j = jsonDecode(raw) as Map<String, dynamic>;
-    return SyncConfig(j['url'] as String, j['key'] as String);
+    return null;
   }
 
   /// 저장된 연결 정보가 있으면 Supabase를 켭니다. 실패하면 동기화 없이 계속.
@@ -59,6 +64,7 @@ class SyncConfig {
       _key,
       jsonEncode({'url': c.url, 'key': c.publishableKey}),
     );
+    await prefs.remove(_offKey);
     // Supabase는 앱을 켠 동안 한 번만 초기화할 수 있어서, 이미 다른 주소로
     // 켜졌다면 다음 실행 때 새 주소를 씁니다.
     if (_initialized && _initializedUrl != c.url) {
@@ -70,6 +76,7 @@ class SyncConfig {
   /// 동기화를 끕니다 (로그아웃하고 연결 정보 삭제). 이 기기 기록은 그대로 남습니다.
   static Future<void> disconnect(SharedPreferences prefs) async {
     await prefs.remove(_key);
+    await prefs.setBool(_offKey, true);
     if (active.value != null) {
       try {
         await Supabase.instance.client.auth.signOut();
