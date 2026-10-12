@@ -720,3 +720,97 @@ Readiness restReadiness(Iterable<StudySession> sessions) => Readiness(
   6,
   '번',
 );
+
+// ---------- 주간 리포트 ----------
+
+class SubjectWeek {
+  final String subjectId;
+  final int thisSec;
+  final int lastSec; // 지난주 같은 기간
+  const SubjectWeek(this.subjectId, this.thisSec, this.lastSec);
+}
+
+class SubjectGap {
+  final String subjectId;
+  final int days; // 마지막으로 공부한 날부터 오늘까지 며칠
+  const SubjectGap(this.subjectId, this.days);
+}
+
+class WeeklyReport {
+  final int thisSec;
+  final int lastSec; // 지난주 월요일부터 같은 요일·시각까지
+  final int studyDays; // 이번 주 공부한 날
+  final int daysElapsed; // 이번 주 지난 날 (오늘 포함)
+  final List<SubjectWeek> subjects; // 이번 주 많이 한 순
+  final List<SubjectGap> gaps; // 3일 이상 안 한 과목, 오래된 순
+  const WeeklyReport({
+    required this.thisSec,
+    required this.lastSec,
+    required this.studyDays,
+    required this.daysElapsed,
+    required this.subjects,
+    required this.gaps,
+  });
+}
+
+/// 이번 주를 지난주 같은 기간과 견주고, 며칠째 손 놓은 과목을 찾습니다.
+/// 집중도 점수 없이 기록만으로 계산합니다.
+WeeklyReport weeklyReport(
+  Iterable<StudySession> sessions,
+  Iterable<String> subjectIds,
+  DateTime nowLocal, {
+  int dayStartHour = 0,
+  int gapDays = 3,
+}) {
+  final start = rangeStart(
+    StatsRange.week,
+    nowLocal,
+    dayStartHour: dayStartHour,
+  );
+  final lastStart = start.subtract(const Duration(days: 7));
+  final lastEnd = nowLocal.subtract(const Duration(days: 7));
+  final today = studyDate(nowLocal, dayStartHour);
+  final thisBy = <String, int>{}, lastBy = <String, int>{};
+  final days = <DateTime>{};
+  final lastDay = <String, DateTime>{};
+  for (final s in sessions) {
+    if (s.deleted) continue;
+    final t = s.startedAt.toLocal();
+    final d = studyDate(t, dayStartHour);
+    final prev = lastDay[s.subjectId];
+    if (prev == null || d.isAfter(prev)) lastDay[s.subjectId] = d;
+    if (!t.isBefore(start)) {
+      thisBy[s.subjectId] = (thisBy[s.subjectId] ?? 0) + s.focusSeconds;
+      days.add(d);
+    } else if (!t.isBefore(lastStart) && t.isBefore(lastEnd)) {
+      lastBy[s.subjectId] = (lastBy[s.subjectId] ?? 0) + s.focusSeconds;
+    }
+  }
+  final ids = {...thisBy.keys, ...lastBy.keys};
+  final subjects =
+      ids
+          .map((id) => SubjectWeek(id, thisBy[id] ?? 0, lastBy[id] ?? 0))
+          .toList()
+        ..sort((a, b) => b.thisSec.compareTo(a.thisSec));
+  final gaps = <SubjectGap>[];
+  for (final id in subjectIds) {
+    final d = lastDay[id];
+    if (d == null) continue;
+    final n = DateTime.utc(
+      today.year,
+      today.month,
+      today.day,
+    ).difference(DateTime.utc(d.year, d.month, d.day)).inDays;
+    if (n >= gapDays) gaps.add(SubjectGap(id, n));
+  }
+  gaps.sort((a, b) => b.days.compareTo(a.days));
+  int sum(Map<String, int> m) => m.values.fold(0, (a, b) => a + b);
+  return WeeklyReport(
+    thisSec: sum(thisBy),
+    lastSec: sum(lastBy),
+    studyDays: days.length,
+    daysElapsed: today.weekday,
+    subjects: subjects,
+    gaps: gaps,
+  );
+}

@@ -80,6 +80,9 @@ class _StatsTabState extends State<StatsTab> {
                   _heatmap(theme, sessions, now),
                 ]),
                 page([
+                  _section(theme, '이번 주 리포트'),
+                  _weekly(theme, sessions, now),
+                  const Divider(height: 48),
                   _section(theme, '딴짓·딴생각 (최근 7일)'),
                   _gated(
                     theme,
@@ -561,6 +564,74 @@ class _StatsTabState extends State<StatsTab> {
       Text(text, style: theme.textTheme.bodySmall);
 
   // ---------- 기간별 합계 ----------
+
+  // ---------- 주간 리포트 ----------
+
+  Widget _weekly(ThemeData theme, List<StudySession> sessions, DateTime now) {
+    final store = widget.store;
+    final r = weeklyReport(
+      sessions,
+      store.subjects.map((s) => s.id),
+      now,
+      dayStartHour: _h,
+    );
+    final grey = theme.textTheme.bodySmall;
+    String diff(int a, int b) {
+      final d = a - b;
+      if (d.abs() < 60) return '지난주와 비슷';
+      return '지난주보다 ${_hoursMin(d.abs())} ${d > 0 ? '더' : '덜'}';
+    }
+
+    String name(String id) => store.subject(id)?.name ?? '(삭제된 과목)';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_hoursMin(r.thisSec), style: theme.textTheme.headlineMedium),
+        Text(
+          '${diff(r.thisSec, r.lastSec)} · 공부한 날 ${r.studyDays}/${r.daysElapsed}일',
+          style: grey,
+        ),
+        const SizedBox(height: 20),
+        if (r.gaps.isEmpty)
+          Text('모든 과목을 최근 3일 안에 공부했어요.', style: grey)
+        else
+          for (final g in r.gaps)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '${name(g.subjectId)} · ${g.days}일째 안 했어요',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ),
+        const SizedBox(height: 16),
+        for (final s in r.subjects)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Expanded(child: Text(name(s.subjectId))),
+                Text(_hoursMin(s.thisSec)),
+                SizedBox(
+                  width: 120,
+                  child: Text(
+                    s.thisSec >= s.lastSec
+                        ? '+${_hoursMin(s.thisSec - s.lastSec)}'
+                        : '−${_hoursMin(s.lastSec - s.thisSec)}',
+                    textAlign: TextAlign.right,
+                    style: grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  static String _hoursMin(int sec) {
+    final h = sec ~/ 3600, m = (sec % 3600) ~/ 60;
+    return h > 0 ? '$h시간 $m분' : '$m분';
+  }
 
   Widget _totals(ThemeData theme, List<StudySession> sessions, DateTime now) {
     final store = widget.store;
