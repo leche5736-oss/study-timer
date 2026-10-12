@@ -27,12 +27,12 @@ void main() {
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
-    expect(find.text('0.9.5'), findsOneWidget);
+    expect(find.text('0.9.6'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('theme-sage')));
     await tester.pumpAndSettle();
     expect(store.settings.colorTheme, 'sage');
     expect(AppColors.accent, colorThemeById('sage').accent);
-    Navigator.of(tester.element(find.text('0.9.5'))).pop();
+    Navigator.of(tester.element(find.text('0.9.6'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('색 바꾸기'));
@@ -76,12 +76,11 @@ void main() {
     await tester.tap(find.byIcon(Icons.bar_chart_outlined));
     await tester.pumpAndSettle();
     expect(find.text('총 시간'), findsOneWidget);
-    for (final tab in ['달력', '패턴', '분석']) {
+    for (final tab in ['달력', '패턴']) {
       await tester.tap(find.text(tab));
       await tester.pumpAndSettle();
     }
-    // 기록이 적으면 분석 대신 얼마나 더 쌓아야 하는지 보여 줌
-    expect(find.textContaining('더 쌓이면 볼 수 있어요'), findsNWidgets(3));
+    expect(find.text('분석'), findsNothing); // 분석은 Claude에게 맡김
   });
 
   testWidgets('과목이 여러 개면 시작을 누른 뒤 과목을 고른다', (tester) async {

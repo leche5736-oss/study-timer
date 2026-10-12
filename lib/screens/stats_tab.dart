@@ -41,7 +41,7 @@ class _StatsTabState extends State<StatsTab> {
         ListView(padding: const EdgeInsets.all(24), children: children);
 
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: Column(
         children: [
           const TabBar(
@@ -49,7 +49,6 @@ class _StatsTabState extends State<StatsTab> {
               Tab(text: '요약'),
               Tab(text: '달력'),
               Tab(text: '패턴'),
-              Tab(text: '분석'),
             ],
           ),
           Expanded(
@@ -63,6 +62,9 @@ class _StatsTabState extends State<StatsTab> {
                   const Divider(height: 48),
                   _section(theme, '추이'),
                   _trend(theme, sessions, now),
+                  const Divider(height: 48),
+                  // 자세한 분석은 Claude에 Supabase 커넥터를 연결해 물어봅니다.
+                  _csvButton(sessions),
                 ]),
                 page([
                   _calendar(theme, sessions, now),
@@ -78,36 +80,6 @@ class _StatsTabState extends State<StatsTab> {
                   const Divider(height: 48),
                   _section(theme, '시간대별 집중도 (최근 30일)'),
                   _heatmap(theme, sessions, now),
-                ]),
-                page([
-                  _section(theme, '이번 주 리포트'),
-                  _weekly(theme, sessions, now),
-                  const Divider(height: 48),
-                  _section(theme, '딴짓·딴생각 (최근 7일)'),
-                  _gated(
-                    theme,
-                    distractionReadiness(sessions, now, dayStartHour: _h),
-                    '최근 7일 중 공부한 날',
-                    () => _distractions(theme, sessions, now),
-                  ),
-                  const Divider(height: 48),
-                  _section(theme, '집중 길이별 집중도'),
-                  _gated(
-                    theme,
-                    lengthReadiness(sessions),
-                    '집중도를 남긴 블록',
-                    () => _lengths(theme, sessions),
-                  ),
-                  const Divider(height: 48),
-                  _section(theme, '휴식 방식별 다음 블록 집중도'),
-                  _gated(
-                    theme,
-                    restReadiness(sessions),
-                    '휴식 중 한 일을 남기고 이어서 공부한 블록',
-                    () => _rests(theme, sessions),
-                  ),
-                  const Divider(height: 48),
-                  _csvButton(sessions),
                 ]),
               ],
             ),
@@ -500,61 +472,6 @@ class _StatsTabState extends State<StatsTab> {
     );
   }
 
-  // ---------- 딴짓 ----------
-
-  Widget _distractions(
-    ThemeData theme,
-    List<StudySession> sessions,
-    DateTime now,
-  ) {
-    final today = studyDate(now, _h);
-    final since = dayStartOf(
-      DateTime(today.year, today.month, today.day - 6),
-      _h,
-    );
-    final d = distractionStat(sessions, widget.store.thoughts, since);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('딴짓 앱 ${d.count}회 · ${formatHms(d.seconds)}'),
-        if (d.focusSeconds > 0)
-          Text(
-            '공부 1시간당 ${d.perHour.toStringAsFixed(1)}회',
-            style: theme.textTheme.bodySmall,
-          ),
-        const SizedBox(height: 4),
-        Text('딴생각 메모 ${d.thoughts}개'),
-        const SizedBox(height: 4),
-        _empty(theme, '딴짓 앱 감지는 Mac 앱에서 ⚙︎ 설정 > 딴짓 앱 감지에 앱을 추가하면 기록돼요.'),
-      ],
-    );
-  }
-
-  /// 기록이 [r.need]만큼 쌓이면 분석을 보여 주고, 그 전에는 얼마나 남았는지만.
-  Widget _gated(
-    ThemeData theme,
-    Readiness r,
-    String what,
-    Widget Function() build,
-  ) {
-    if (r.ready) return build();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(value: r.progress, minHeight: 6),
-        ),
-        const SizedBox(height: 8),
-        _empty(
-          theme,
-          '$what ${r.have}/${r.need}${r.unit} · '
-          '${r.need - r.have}${r.unit} 더 쌓이면 볼 수 있어요',
-        ),
-      ],
-    );
-  }
-
   Widget _section(ThemeData theme, String title) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: Text(title, style: theme.textTheme.titleMedium),
@@ -564,74 +481,6 @@ class _StatsTabState extends State<StatsTab> {
       Text(text, style: theme.textTheme.bodySmall);
 
   // ---------- 기간별 합계 ----------
-
-  // ---------- 주간 리포트 ----------
-
-  Widget _weekly(ThemeData theme, List<StudySession> sessions, DateTime now) {
-    final store = widget.store;
-    final r = weeklyReport(
-      sessions,
-      store.subjects.map((s) => s.id),
-      now,
-      dayStartHour: _h,
-    );
-    final grey = theme.textTheme.bodySmall;
-    String diff(int a, int b) {
-      final d = a - b;
-      if (d.abs() < 60) return '지난주와 비슷';
-      return '지난주보다 ${_hoursMin(d.abs())} ${d > 0 ? '더' : '덜'}';
-    }
-
-    String name(String id) => store.subject(id)?.name ?? '(삭제된 과목)';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(_hoursMin(r.thisSec), style: theme.textTheme.headlineMedium),
-        Text(
-          '${diff(r.thisSec, r.lastSec)} · 공부한 날 ${r.studyDays}/${r.daysElapsed}일',
-          style: grey,
-        ),
-        const SizedBox(height: 20),
-        if (r.gaps.isEmpty)
-          Text('모든 과목을 최근 3일 안에 공부했어요.', style: grey)
-        else
-          for (final g in r.gaps)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                '${name(g.subjectId)} · ${g.days}일째 안 했어요',
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ),
-        const SizedBox(height: 16),
-        for (final s in r.subjects)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              children: [
-                Expanded(child: Text(name(s.subjectId))),
-                Text(_hoursMin(s.thisSec)),
-                SizedBox(
-                  width: 120,
-                  child: Text(
-                    s.thisSec >= s.lastSec
-                        ? '+${_hoursMin(s.thisSec - s.lastSec)}'
-                        : '−${_hoursMin(s.lastSec - s.thisSec)}',
-                    textAlign: TextAlign.right,
-                    style: grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  static String _hoursMin(int sec) {
-    final h = sec ~/ 3600, m = (sec % 3600) ~/ 60;
-    return h > 0 ? '$h시간 $m분' : '$m분';
-  }
 
   Widget _totals(ThemeData theme, List<StudySession> sessions, DateTime now) {
     final store = widget.store;
@@ -889,63 +738,6 @@ class _StatsTabState extends State<StatsTab> {
           ),
         ],
       ],
-    );
-  }
-
-  // ---------- 집중 길이 ----------
-
-  Widget _lengths(ThemeData theme, List<StudySession> sessions) {
-    final stats = focusByLength(sessions);
-    final rec = recommendLength(sessions);
-    if (stats.isEmpty) {
-      return _empty(theme, '집중도를 남긴 기록이 쌓이면 어떤 길이가 나에게 맞는지 보여줘요.');
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final b in stats)
-          _ratingRow(theme, b.bucket.label, b.avgRating, b.count),
-        const SizedBox(height: 8),
-        Text(
-          rec == null
-              ? '길이별로 3번 이상 기록이 쌓이면 추천해 드려요.'
-              : '추천: ${rec.bucket.label} 블록(예: ${rec.bucket.suggestMin}분)에서 집중이 가장 잘 됐어요.',
-        ),
-      ],
-    );
-  }
-
-  // ---------- 휴식 방식 ----------
-
-  Widget _rests(ThemeData theme, List<StudySession> sessions) {
-    final stats = restComparison(sessions);
-    if (stats.isEmpty) {
-      return _empty(theme, '휴식 화면에서 "휴식 중 한 일"을 눌러 두면, 그다음 블록의 집중도와 비교해 보여줘요.');
-    }
-    return Column(
-      children: [
-        for (final r in stats)
-          _ratingRow(theme, r.type.label, r.avgNextRating, r.count),
-      ],
-    );
-  }
-
-  Widget _ratingRow(ThemeData theme, String label, double avg, int count) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(width: 110, child: Text(label)),
-          Expanded(
-            child: LinearProgressIndicator(value: avg / 5, minHeight: 8),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${avg.toStringAsFixed(1)} ($count번)',
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
-      ),
     );
   }
 }
