@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../timer_logic.dart';
 import '../services/store.dart';
 import '../stats.dart';
 import '../theme.dart';
@@ -105,11 +106,7 @@ class _RecallViewState extends State<_RecallView> {
                 rating: _rating,
                 note: _note.text.trim(),
               ),
-              child: Text(
-                !t.stopwatch && t.presetIndex == timerPresetIndex
-                    ? '저장하고 마치기'
-                    : '저장하고 휴식',
-              ),
+              child: Text(TimerLogic.restFollows(t) ? '저장하고 휴식' : '저장하고 마치기'),
             ),
           ],
         ),

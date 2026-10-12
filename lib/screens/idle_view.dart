@@ -80,7 +80,7 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
     );
     final goal = store.settings.dailyGoalMin * 60;
     final open = store.openThoughts.length;
-    final blocks = store.timer.blocksDone;
+    final blocks = store.blocksToday;
     const grey = TextStyle(color: AppColors.grey, fontSize: 15);
 
     final clock = <Widget>[

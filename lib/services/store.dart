@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models.dart';
+import '../stats.dart';
 import '../timer_logic.dart';
 
 const _uuid = Uuid();
@@ -305,13 +306,26 @@ class AppStore extends ChangeNotifier {
     _changed(local: local);
   }
 
+  /// 오늘(공부 날짜 기준) 끝까지 채운 블록 수. 날이 바뀌면 0부터 다시 셉니다.
+  int get blocksToday => _timer.blocksDay == _todayKey ? _timer.blocksDone : 0;
+
+  String get _todayKey =>
+      studyDate(now, _settings.dayStartHour).toIso8601String().substring(0, 10);
+
   void startFocus(
     String subjectId,
     int presetIndex, {
     bool stopwatch = false,
   }) => _setTimer(
     TimerLogic.startFocus(
-      _timer,
+      // 어제 센 블록 수는 이어 가지 않습니다 (긴 휴식 주기도 오늘부터).
+      _timer.blocksDay == _todayKey
+          ? _timer
+          : TimerState.fromJson({
+              ..._timer.toJson(),
+              'blocks_done': 0,
+              'blocks_day': _todayKey,
+            }),
       subjectId: subjectId,
       presetIndex: presetIndex,
       preset: _settings.presetAt(presetIndex),
@@ -361,7 +375,11 @@ class AppStore extends ChangeNotifier {
       recallNote: note,
     );
     _sessions[session.id] = session;
-    _setTimer(next);
+    _setTimer(
+      next.blocksDone > _timer.blocksDone
+          ? TimerState.fromJson({...next.toJson(), 'blocks_day': _todayKey})
+          : next,
+    );
   }
 
   /// 매초 호출해 시간이 다 된 단계를 넘깁니다.

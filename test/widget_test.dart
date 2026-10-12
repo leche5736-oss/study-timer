@@ -27,12 +27,12 @@ void main() {
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
-    expect(find.text('0.9.3'), findsOneWidget);
+    expect(find.text('0.9.4'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('theme-sage')));
     await tester.pumpAndSettle();
     expect(store.settings.colorTheme, 'sage');
     expect(AppColors.accent, colorThemeById('sage').accent);
-    Navigator.of(tester.element(find.text('0.9.3'))).pop();
+    Navigator.of(tester.element(find.text('0.9.4'))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('색 바꾸기'));
@@ -65,14 +65,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('수고했어요'), findsOneWidget);
 
-    await tester.tap(find.text('저장하고 휴식'));
+    // 일찍 끝낸 블록은 휴식 없이 바로 마칩니다.
+    await tester.tap(find.text('저장하고 마치기'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('휴식'), findsOneWidget);
-    expect(find.text('택배 찾기'), findsOneWidget); // 휴식 때 다시 보여줌
-    await tester.tap(find.text('휴식 건너뛰기'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
+    expect(store.timer.phase, Phase.idle);
     expect(find.textContaining('블록 완료'), findsNothing); // 일찍 끝낸 블록은 안 셈
     expect(find.text('딴생각 메모 1개'), findsOneWidget);
 

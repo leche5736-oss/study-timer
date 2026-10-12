@@ -3,6 +3,13 @@ import 'models.dart';
 /// 타이머 상태 전환 규칙. 모두 순수 함수라 테스트하기 쉽습니다.
 class TimerLogic {
   /// 집중을 시작합니다. [stopwatch]면 시간 제한 없이 위로 셉니다.
+  /// 정리 노트를 저장하면 휴식이 오는지 (블록을 끝까지 채웠거나 스톱워치).
+  static bool restFollows(TimerState s) {
+    if (s.stopwatch) return true;
+    if (s.presetIndex == timerPresetIndex) return false;
+    return s.blockPriorSec + (s.completedFocusSec ?? 0) >= s.focusMin * 60;
+  }
+
   static TimerState startFocus(
     TimerState s, {
     required String subjectId,
@@ -17,6 +24,7 @@ class TimerLogic {
       subjectId: subjectId,
       presetIndex: presetIndex,
       blocksDone: s.blocksDone,
+      blocksDay: s.blocksDay,
       sessionId: sessionId,
       sessionStartedAt: now,
       durationSec: stopwatch ? 0 : preset.focusMin * 60,
@@ -85,6 +93,7 @@ class TimerLogic {
       subjectId: s.subjectId,
       presetIndex: s.presetIndex,
       blocksDone: s.blocksDone,
+      blocksDay: s.blocksDay,
       sessionId: s.sessionId,
       sessionStartedAt: s.sessionStartedAt,
       completedFocusSec: focused,
@@ -171,13 +180,14 @@ class TimerLogic {
       distractedSeconds: s.distractedSec,
       updatedAt: now,
     );
-    // 타이머 모드는 휴식 없이 바로 끝납니다.
-    if (timerMode) return (session, toIdle(s, now));
+    // 타이머 모드, 그리고 정한 시간을 다 채우지 못한 블록은 휴식 없이 끝납니다.
+    if (timerMode || (!s.stopwatch && !full)) return (session, toIdle(s, now));
     final next = TimerState(
       phase: Phase.rest,
       subjectId: s.subjectId,
       presetIndex: s.presetIndex,
       blocksDone: blocks,
+      blocksDay: s.blocksDay,
       durationSec: restMin * 60,
       runningSince: now,
       longRest: longRest,
@@ -196,6 +206,7 @@ class TimerLogic {
     subjectId: s.subjectId,
     presetIndex: s.presetIndex,
     blocksDone: s.blocksDone,
+    blocksDay: s.blocksDay,
     stopwatch: s.stopwatch,
     focusMin: s.focusMin,
     restMin: s.restMin,
@@ -233,6 +244,7 @@ class TimerLogic {
     subjectId: s.subjectId,
     presetIndex: s.presetIndex,
     blocksDone: s.blocksDone,
+    blocksDay: s.blocksDay,
     sessionId: s.sessionId,
     sessionStartedAt: s.sessionStartedAt,
     durationSec: s.durationSec,
@@ -269,6 +281,7 @@ class TimerLogic {
       subjectId: subjectId,
       presetIndex: s.presetIndex,
       blocksDone: s.blocksDone,
+      blocksDay: s.blocksDay,
       sessionId: sessionId ?? s.sessionId,
       sessionStartedAt: sessionStartedAt ?? s.sessionStartedAt,
       durationSec: s.durationSec,

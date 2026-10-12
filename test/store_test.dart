@@ -106,8 +106,10 @@ void main() {
     final store = await make();
     final math = store.addSubject('수학');
     store.startFocus(math.id, 0);
-    store.finishFocus();
+    clock = clock.add(const Duration(minutes: 25)); // 블록을 끝까지 채워야 휴식
+    store.tick();
     store.submitRecall();
+    expect(store.timer.phase, Phase.rest);
     store.setRestType(RestType.walk);
     expect(store.sessions.single.restType, 'walk');
   });

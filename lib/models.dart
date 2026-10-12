@@ -336,6 +336,7 @@ class TimerState {
   final String? subjectId;
   final int presetIndex;
   final int blocksDone; // 정한 시간을 끝까지 채운 집중 블록 수
+  final String? blocksDay; // blocksDone을 센 공부 날짜 (yyyy-mm-dd). 날이 바뀌면 0부터
   final String? sessionId; // 진행 중인 집중 블록의 기록 id
   final DateTime? sessionStartedAt;
   final int durationSec; // 현재 단계의 목표 길이
@@ -361,6 +362,7 @@ class TimerState {
     this.subjectId,
     this.presetIndex = 0,
     this.blocksDone = 0,
+    this.blocksDay,
     this.sessionId,
     this.sessionStartedAt,
     this.durationSec = 0,
@@ -405,6 +407,7 @@ class TimerState {
     'subject_id': subjectId,
     'preset_index': presetIndex,
     'blocks_done': blocksDone,
+    'blocks_day': blocksDay,
     'session_id': sessionId,
     'session_started_at': sessionStartedAt?.toIso8601String(),
     'duration_sec': durationSec,
@@ -436,6 +439,7 @@ class TimerState {
       subjectId: j['subject_id'] as String?,
       presetIndex: presetIndex,
       blocksDone: (j['blocks_done'] as num?)?.toInt() ?? 0,
+      blocksDay: j['blocks_day'] as String?,
       sessionId: j['session_id'] as String?,
       sessionStartedAt: _parse(j['session_started_at']),
       durationSec: (j['duration_sec'] as num?)?.toInt() ?? 0,
