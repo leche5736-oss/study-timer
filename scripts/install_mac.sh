@@ -2,9 +2,20 @@
 # 공부 타이머를 Mac에 설치합니다.
 # 처음 실행하면 Flutter를 설치하고, 앱을 빌드해서
 # "응용 프로그램" 폴더에 넣습니다. 새 버전을 받을 때도 이 스크립트를 다시 실행하면 됩니다.
+# 최신 코드도 이 스크립트가 받아 옵니다. 이 Mac에서 직접 만든 앱이라
+# 다운로드한 앱처럼 독에서 튀기만 하고 안 열리는 문제가 생기지 않습니다.
+main() {
 set -e
 
 cd "$(dirname "$0")/.."
+
+# 최신 코드 받기 (iPhone 설치 때 Xcode가 바꾼 설정은 개발 팀만 저장하고 되돌림)
+team=$(grep -m1 -o 'DEVELOPMENT_TEAM = [A-Z0-9]*' ios/Runner.xcodeproj/project.pbxproj | awk '{print $3}' || true)
+if [ -n "$team" ]; then
+  echo "DEVELOPMENT_TEAM = $team" > ios/Flutter/Team.xcconfig
+fi
+git checkout -- ios macos
+git pull
 
 say() { printf '\n\033[1;34m▶ %s\033[0m\n' "$1"; }
 
@@ -54,8 +65,13 @@ flutter build macos --release
 APP="build/macos/Build/Products/Release/study_timer.app"
 DEST="/Applications/공부 타이머.app"
 osascript -e 'quit app "공부 타이머"' >/dev/null 2>&1 || true
+pkill -f "공부 타이머.app/Contents/MacOS" 2>/dev/null || true # 멈춰 있던 앱도 끔
 rm -rf "$DEST"
 cp -R "$APP" "$DEST"
+xattr -cr "$DEST"
+codesign --force --deep -s - "$DEST"
 
 say "설치 완료! Launchpad나 응용 프로그램 폴더에서 '공부 타이머'를 여세요."
 open "$DEST"
+}
+main "$@"
