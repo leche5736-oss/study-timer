@@ -42,118 +42,14 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
   bool get _timerMode => !_stopwatch && _preset == timerPresetIndex;
 
   /// 시작을 누르면 과목을 고르고 바로 시작합니다. 과목이 하나면 바로 시작.
-  /// [subjectId]가 있으면(오늘 계획 줄을 누름) 그 과목으로 바로 시작.
-  Future<void> _start([String? subjectId]) async {
+  Future<void> _start() async {
     Notifications.instance.requestWebPermission();
     final subjects = store.subjects;
-    final id =
-        subjectId ??
-        (subjects.length == 1
-            ? subjects.single.id
-            : await pickSubject(
-                context,
-                subjects,
-                markId: store.timer.subjectId,
-              ));
+    final id = subjects.length == 1
+        ? subjects.single.id
+        : await pickSubject(context, subjects, markId: store.timer.subjectId);
     if (id == null || !mounted) return;
     store.startFocus(id, _preset, stopwatch: _stopwatch);
-  }
-
-  /// 오늘 계획 (COSMOS 등이 써 넣은 것). 줄을 누르면 그 과목으로 바로 시작.
-  Widget _planList(DailyPlan plan) {
-    final done = {
-      for (final t in totalsBySubject(
-        store.allSessions,
-        StatsRange.day,
-        DateTime.now(),
-        dayStartHour: store.settings.dayStartHour,
-      ))
-        t.subjectId: t.seconds,
-    };
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 360),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (plan.note.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                plan.note,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.grey, fontSize: 13),
-              ),
-            ),
-          for (final item in plan.items) _planRow(item, done),
-        ],
-      ),
-    );
-  }
-
-  Widget _planRow(PlanItem item, Map<String, int> done) {
-    final subject = store.subjectNamed(item.subject);
-    final studied = subject == null ? 0 : (done[subject.id] ?? 0);
-    final finished = item.minutes > 0 && studied >= item.minutes * 60;
-    final title = [
-      item.subject,
-      if (item.task.isNotEmpty && item.task != item.subject) item.task,
-    ].join(' · ');
-    final detail = [
-      if (item.book.isNotEmpty) item.book,
-      if (item.target.isNotEmpty) item.target,
-    ].join(' ');
-    return InkWell(
-      key: ValueKey('plan-${item.subject}-${item.task}'),
-      borderRadius: BorderRadius.circular(10),
-      onTap: () => _start(subject?.id),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 4,
-              backgroundColor: subject?.colorValue ?? AppColors.faint,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: finished ? AppColors.faint : AppColors.ink,
-                      decoration: finished ? TextDecoration.lineThrough : null,
-                    ),
-                  ),
-                  if (detail.isNotEmpty)
-                    Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (item.minutes > 0)
-              Text(
-                '${formatHm(studied)} / ${formatHm(item.minutes * 60)}',
-                style: const TextStyle(
-                  color: AppColors.grey,
-                  fontSize: 12,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -182,8 +78,8 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
       DateTime.now(),
       dayStartHour: store.settings.dayStartHour,
     );
+    // 오늘 계획(COSMOS 등)이 있으면 그 시간의 합이 목표가 됩니다.
     final goal = store.goalMinutes * 60;
-    final plan = store.todayPlan;
     final blocks = store.blocksToday;
     const grey = TextStyle(color: AppColors.grey, fontSize: 15);
     final size = MediaQuery.sizeOf(context);
@@ -258,10 +154,6 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-              if (plan != null) ...[
-                const SizedBox(height: 16),
-                _planList(plan),
-              ],
               // 처음 몇 번만 쓰는 법을 알려 줍니다.
               if (store.allSessions.length < 3) ...[
                 const SizedBox(height: 6),

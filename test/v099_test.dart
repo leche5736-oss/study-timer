@@ -52,25 +52,17 @@ void main() {
     expect(store.goalMinutes, 300);
   });
 
-  testWidgets('첫 화면의 계획 줄을 누르면 그 과목으로 바로 시작', (tester) async {
+  testWidgets('계획 줄은 화면에 없고, 목표만 계획 시간의 합으로', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     SharedPreferences.setMockInitialValues({});
     final store = AppStore(await SharedPreferences.getInstance());
-    final a = store.addSubject('형법');
-    store.addSubject('상법');
+    store.addSubject('형법');
     store.setPlan(_plan(store));
     await tester.pumpWidget(StudyTimerApp(store: store));
-
-    expect(find.text('형 법 · 형법 45강'), findsOneWidget);
-    expect(find.text('형법총론 p.58'), findsOneWidget);
-    expect(find.text('0:00 / 2:00'), findsOneWidget);
-    expect(find.textContaining('/ 3:00'), findsOneWidget); // 목표 = 계획 합
-    await tester.tap(find.text('형 법 · 형법 45강'));
-    await tester.pump();
-    expect(store.timer.phase, Phase.focus);
-    expect(store.timer.subjectId, a.id);
+    expect(find.textContaining('형법 45강'), findsNothing);
+    expect(find.textContaining('/ 3:00'), findsOneWidget);
   });
 
   testWidgets('과목 색 동그라미를 누르면 색 줄이 뜨고 고르면 바뀐다', (tester) async {
