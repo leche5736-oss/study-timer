@@ -39,12 +39,97 @@ class _RecallView extends StatefulWidget {
 
 class _RecallViewState extends State<_RecallView> {
   final _note = TextEditingController();
+  final _progress = TextEditingController();
   int? _rating;
+  String? _book; // 고른 책 (null = 안 적음)
+  bool _bookInit = false;
 
   @override
   void dispose() {
     _note.dispose();
+    _progress.dispose();
     super.dispose();
+  }
+
+  /// 책 추가 창. 추가한 책은 과목에 저장되고 바로 골라집니다.
+  Future<void> _addBook(Subject subject) async {
+    final c = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${subject.name} 책 추가'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '예: 민법의 맥 (윤동환)'),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, c.text),
+            child: const Text('추가'),
+          ),
+        ],
+      ),
+    );
+    final n = name?.trim() ?? '';
+    if (n.isEmpty || !mounted) return;
+    widget.store.setSubjectBooks(subject.id, [...subject.books, n]);
+    setState(() => _book = n);
+  }
+
+  /// 어느 책을 어디까지 봤는지 (Claude가 진도를 보고 계획을 세울 때 씁니다).
+  List<Widget> _bookSection(Subject subject, TextStyle grey) {
+    final store = widget.store;
+    if (!_bookInit) {
+      _bookInit = true;
+      final last = store.lastProgress(subject.id);
+      if (last != null && subject.books.contains(last.book)) _book = last.book;
+    }
+    final last = _book == null
+        ? null
+        : store.lastProgress(subject.id, book: _book);
+    return [
+      Text('어디까지 봤나요', textAlign: TextAlign.center, style: grey),
+      const SizedBox(height: 8),
+      Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          for (final b in subject.books)
+            ChoiceChip(
+              label: Text(b),
+              selected: _book == b,
+              onSelected: (on) => setState(() => _book = on ? b : null),
+            ),
+          ActionChip(
+            avatar: const Icon(Icons.add, size: 18),
+            label: const Text('책 추가'),
+            onPressed: () => _addBook(subject),
+          ),
+        ],
+      ),
+      if (_book != null) ...[
+        const SizedBox(height: 8),
+        TextField(
+          key: const Key('recall-progress'),
+          controller: _progress,
+          decoration: InputDecoration(
+            hintText: '어디까지 (예: 120쪽, 3장 2절)',
+            hintStyle: const TextStyle(color: AppColors.grey),
+            helperText: last == null || last.progress.isEmpty
+                ? null
+                : '지난번: ${last.progress}',
+          ),
+        ),
+      ],
+      const SizedBox(height: 24),
+    ];
   }
 
   @override
@@ -71,6 +156,7 @@ class _RecallViewState extends State<_RecallView> {
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 32),
+            if (subject != null) ..._bookSection(subject, grey),
             TextField(
               controller: _note,
               maxLines: 6,
@@ -105,6 +191,8 @@ class _RecallViewState extends State<_RecallView> {
               onPressed: () => widget.store.submitRecall(
                 rating: _rating,
                 note: _note.text.trim(),
+                book: _book ?? '',
+                progress: _book == null ? '' : _progress.text,
               ),
               child: Text(TimerLogic.restFollows(t) ? '저장하고 휴식' : '저장하고 마치기'),
             ),

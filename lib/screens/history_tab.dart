@@ -62,6 +62,7 @@ class HistoryTab extends StatelessWidget {
           ),
           subtitle: Text(
             '${_formatDate(s.startedAt)}'
+            '${s.book.isEmpty ? '' : ' · ${s.book}${s.progress.isEmpty ? '' : ' ${s.progress}까지'}'}'
             '${s.focusRating == null ? '' : ' · 집중도 ${s.focusRating}'}'
             '${RestType.byName(s.restType) == null ? '' : ' · 휴식: ${RestType.byName(s.restType)!.label}'}'
             '${s.distractions == 0 ? '' : ' · 딴짓 ${s.distractions}회 ${formatDuration(s.distractedSeconds)}'}',

@@ -208,6 +208,32 @@ class AppStore extends ChangeNotifier {
     _changed();
   }
 
+  /// 과목의 책 목록을 바꿉니다 (빈 이름·중복은 뺌).
+  void setSubjectBooks(String id, List<String> books) {
+    final s = _subjects[id];
+    if (s == null) return;
+    final clean = <String>[];
+    for (final b in books.map((b) => b.trim())) {
+      if (b.isNotEmpty && !clean.contains(b)) clean.add(b);
+    }
+    _subjects[id] = s.copyWith(books: clean);
+    _changed();
+  }
+
+  /// 이 과목에서 마지막으로 적은 책과 진도 (책을 정하면 그 책 기준).
+  ({String book, String progress})? lastProgress(
+    String subjectId, {
+    String? book,
+  }) {
+    StudySession? best;
+    for (final s in _sessions.values) {
+      if (s.deleted || s.subjectId != subjectId || s.book.isEmpty) continue;
+      if (book != null && s.book != book) continue;
+      if (best == null || s.endedAt.isAfter(best.endedAt)) best = s;
+    }
+    return best == null ? null : (book: best.book, progress: best.progress);
+  }
+
   void deleteSubject(String id) {
     final s = _subjects[id];
     if (s == null) return;
@@ -223,6 +249,8 @@ class AppStore extends ChangeNotifier {
     required int focusSeconds,
     int? focusRating,
     String recallNote = '',
+    String book = '',
+    String progress = '',
   }) {
     final old = id == null ? null : _sessions[id];
     final start = startedAt.toUtc();
@@ -239,6 +267,8 @@ class AppStore extends ChangeNotifier {
       restType: old?.restType,
       distractions: old?.distractions ?? 0,
       distractedSeconds: old?.distractedSeconds ?? 0,
+      book: book.trim(),
+      progress: progress.trim(),
       updatedAt: now,
     );
     _sessions[s.id] = s;
@@ -367,14 +397,22 @@ class AppStore extends ChangeNotifier {
     _setTimer(next);
   }
 
-  void submitRecall({int? rating, String note = ''}) {
+  void submitRecall({
+    int? rating,
+    String note = '',
+    String book = '',
+    String progress = '',
+  }) {
     final (session, next) = TimerLogic.submitRecall(
       _timer,
       now: now,
       focusRating: rating,
       recallNote: note,
     );
-    _sessions[session.id] = session;
+    _sessions[session.id] = session.copyWith(
+      book: book.trim(),
+      progress: progress.trim(),
+    );
     _setTimer(
       next.blocksDone > _timer.blocksDone
           ? TimerState.fromJson({...next.toJson(), 'blocks_day': _todayKey})

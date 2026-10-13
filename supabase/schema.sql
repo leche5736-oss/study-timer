@@ -90,3 +90,8 @@ alter table public.sessions add column if not exists rest_type text;
 alter table public.sessions add column if not exists distractions int not null default 0;
 alter table public.sessions add column if not exists distracted_seconds int not null default 0;
 alter table public.subjects add column if not exists sort_order int not null default 0;
+
+-- 0.9.7: 과목별 책 목록, 블록마다 본 책과 진도
+alter table public.subjects add column if not exists books jsonb not null default '[]'::jsonb;
+alter table public.sessions add column if not exists book text not null default '';
+alter table public.sessions add column if not exists progress text not null default '';

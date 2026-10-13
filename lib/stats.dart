@@ -589,6 +589,8 @@ String sessionsCsv(
       '휴식',
       '딴짓(회)',
       '딴짓(초)',
+      '책',
+      '진도',
       '정리 노트',
     ],
   ];
@@ -607,6 +609,8 @@ String sessionsCsv(
       RestType.byName(s.restType)?.label ?? '',
       '${s.distractions}',
       '${s.distractedSeconds}',
+      s.book,
+      s.progress,
       s.recallNote,
     ]);
   }

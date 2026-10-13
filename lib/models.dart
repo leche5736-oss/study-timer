@@ -8,6 +8,7 @@ class Subject {
   final String name;
   final int color;
   final int order; // 과목 목록 순서 (작을수록 위)
+  final List<String> books; // 이 과목에서 쓰는 책 이름
   final bool deleted;
   final DateTime updatedAt;
 
@@ -16,27 +17,35 @@ class Subject {
     required this.name,
     required this.color,
     this.order = 0,
+    this.books = const [],
     this.deleted = false,
     required this.updatedAt,
   });
 
   Color get colorValue => Color(color);
 
-  Subject copyWith({String? name, int? color, int? order, bool? deleted}) =>
-      Subject(
-        id: id,
-        name: name ?? this.name,
-        color: color ?? this.color,
-        order: order ?? this.order,
-        deleted: deleted ?? this.deleted,
-        updatedAt: DateTime.now().toUtc(),
-      );
+  Subject copyWith({
+    String? name,
+    int? color,
+    int? order,
+    List<String>? books,
+    bool? deleted,
+  }) => Subject(
+    id: id,
+    name: name ?? this.name,
+    color: color ?? this.color,
+    order: order ?? this.order,
+    books: books ?? this.books,
+    deleted: deleted ?? this.deleted,
+    updatedAt: DateTime.now().toUtc(),
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'color': color,
     'sort_order': order,
+    'books': books,
     'deleted': deleted,
     'updated_at': updatedAt.toIso8601String(),
   };
@@ -46,6 +55,7 @@ class Subject {
     name: j['name'] as String,
     color: (j['color'] as num).toInt(),
     order: (j['sort_order'] as num?)?.toInt() ?? 0,
+    books: (j['books'] as List?)?.cast<String>() ?? const [],
     deleted: j['deleted'] as bool? ?? false,
     updatedAt: _parse(j['updated_at'])!,
   );
@@ -65,6 +75,8 @@ class StudySession {
   final String? restType; // 이 블록 뒤 휴식 중 한 일 (RestType.name)
   final int distractions; // 딴짓 앱으로 넘어간 횟수
   final int distractedSeconds; // 딴짓 앱에 머문 시간
+  final String book; // 이 블록에서 본 책 ('' = 안 적음)
+  final String progress; // 어디까지 봤는지 (예: "120쪽", "3장 2절")
   final bool deleted;
   final DateTime updatedAt;
 
@@ -81,11 +93,18 @@ class StudySession {
     this.restType,
     this.distractions = 0,
     this.distractedSeconds = 0,
+    this.book = '',
+    this.progress = '',
     this.deleted = false,
     required this.updatedAt,
   });
 
-  StudySession copyWith({bool? deleted, String? restType}) => StudySession(
+  StudySession copyWith({
+    bool? deleted,
+    String? restType,
+    String? book,
+    String? progress,
+  }) => StudySession(
     id: id,
     subjectId: subjectId,
     startedAt: startedAt,
@@ -98,6 +117,8 @@ class StudySession {
     restType: restType ?? this.restType,
     distractions: distractions,
     distractedSeconds: distractedSeconds,
+    book: book ?? this.book,
+    progress: progress ?? this.progress,
     deleted: deleted ?? this.deleted,
     updatedAt: DateTime.now().toUtc(),
   );
@@ -115,6 +136,8 @@ class StudySession {
     'rest_type': restType,
     'distractions': distractions,
     'distracted_seconds': distractedSeconds,
+    'book': book,
+    'progress': progress,
     'deleted': deleted,
     'updated_at': updatedAt.toIso8601String(),
   };
@@ -132,6 +155,8 @@ class StudySession {
     restType: j['rest_type'] as String?,
     distractions: (j['distractions'] as num?)?.toInt() ?? 0,
     distractedSeconds: (j['distracted_seconds'] as num?)?.toInt() ?? 0,
+    book: j['book'] as String? ?? '',
+    progress: j['progress'] as String? ?? '',
     deleted: j['deleted'] as bool? ?? false,
     updatedAt: _parse(j['updated_at'])!,
   );

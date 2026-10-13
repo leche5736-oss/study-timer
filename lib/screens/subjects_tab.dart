@@ -67,6 +67,14 @@ class SubjectsTab extends StatelessWidget {
                       ],
                     ),
                     title: Text(s.name),
+                    subtitle: s.books.isEmpty
+                        ? null
+                        : Text(
+                            s.books.join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: AppColors.grey),
+                          ),
                     onTap: () async {
                       final name = await _askName(
                         context,
@@ -75,14 +83,96 @@ class SubjectsTab extends StatelessWidget {
                       );
                       if (name != null) store.renameSubject(s.id, name);
                     },
-                    trailing: IconButton(
-                      tooltip: '삭제',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _confirmDelete(context, s),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: '책',
+                          icon: const Icon(Icons.menu_book_outlined),
+                          onPressed: () => _editBooks(context, s.id),
+                        ),
+                        IconButton(
+                          tooltip: '삭제',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _confirmDelete(context, s),
+                        ),
+                      ],
                     ),
                   ),
               ],
             ),
+    );
+  }
+
+  /// 과목에서 쓰는 책 목록. 공부를 마칠 때 여기서 책을 골라 진도를 적습니다.
+  Future<void> _editBooks(BuildContext context, String subjectId) {
+    final add = TextEditingController();
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => ListenableBuilder(
+        listenable: store,
+        builder: (context, _) {
+          final s = store.subject(subjectId);
+          if (s == null) return const SizedBox.shrink();
+          void submit() {
+            final name = add.text.trim();
+            if (name.isEmpty) return;
+            store.setSubjectBooks(s.id, [...s.books, name]);
+            add.clear();
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: SafeArea(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                children: [
+                  Text(
+                    '${s.name} 책',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '공부를 마칠 때 책을 고르고 어디까지 봤는지 적을 수 있어요.',
+                    style: TextStyle(color: AppColors.grey, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final b in s.books)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(b),
+                      trailing: IconButton(
+                        tooltip: '빼기',
+                        icon: const Icon(Icons.close),
+                        onPressed: () => store.setSubjectBooks(
+                          s.id,
+                          s.books.where((x) => x != b).toList(),
+                        ),
+                      ),
+                    ),
+                  TextField(
+                    key: const Key('book-add'),
+                    controller: add,
+                    decoration: InputDecoration(
+                      hintText: '책 이름 (예: 민법의 맥 (윤동환))',
+                      suffixIcon: IconButton(
+                        tooltip: '추가',
+                        icon: const Icon(Icons.add),
+                        onPressed: submit,
+                      ),
+                    ),
+                    onSubmitted: (_) => submit(),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 

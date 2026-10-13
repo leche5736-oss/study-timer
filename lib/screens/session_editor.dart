@@ -19,6 +19,8 @@ class _SessionEditorState extends State<SessionEditor> {
   late final TextEditingController _minutes;
   late final TextEditingController _seconds;
   late final TextEditingController _note;
+  late final TextEditingController _book;
+  late final TextEditingController _progress;
   int? _rating;
   String? _error;
 
@@ -47,6 +49,8 @@ class _SessionEditorState extends State<SessionEditor> {
       text: s == null ? '0' : '${s.focusSeconds % 60}',
     );
     _note = TextEditingController(text: s?.recallNote ?? '');
+    _book = TextEditingController(text: s?.book ?? '');
+    _progress = TextEditingController(text: s?.progress ?? '');
     _rating = s?.focusRating;
   }
 
@@ -55,6 +59,8 @@ class _SessionEditorState extends State<SessionEditor> {
     _minutes.dispose();
     _seconds.dispose();
     _note.dispose();
+    _book.dispose();
+    _progress.dispose();
     super.dispose();
   }
 
@@ -115,6 +121,8 @@ class _SessionEditorState extends State<SessionEditor> {
       focusSeconds: total,
       focusRating: _rating,
       recallNote: _note.text.trim(),
+      book: _book.text,
+      progress: _progress.text,
     );
     Navigator.pop(context);
   }
@@ -199,6 +207,32 @@ class _SessionEditorState extends State<SessionEditor> {
                   selected: _rating == i,
                   onSelected: (sel) => setState(() => _rating = sel ? i : null),
                 ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextField(
+                  controller: _book,
+                  decoration: const InputDecoration(
+                    labelText: '책',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _progress,
+                  decoration: const InputDecoration(
+                    labelText: '어디까지',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 20),

@@ -104,7 +104,12 @@ class SyncService {
       _pushedUpTo = startedAt.subtract(const Duration(seconds: 1));
       lastError.value = null;
     } catch (e) {
-      lastError.value = '동기화 실패: $e';
+      // 앱에 새 칸(예: 책·진도)이 생겼는데 Supabase 표에 아직 없을 때.
+      final missingColumn =
+          '$e'.contains('column') || '$e'.contains('PGRST204');
+      lastError.value = missingColumn
+          ? '동기화 실패: Supabase SQL Editor에서 schema.sql을 한 번 더 실행해 주세요 ($e)'
+          : '동기화 실패: $e';
       debugPrint(lastError.value);
     } finally {
       _pushing = false;
