@@ -6,6 +6,11 @@ import 'package:study_timer/models.dart';
 import 'package:study_timer/services/store.dart';
 import 'package:study_timer/theme.dart';
 
+/// 첫 화면에서 고리 밖을 눌러 시작.
+Future<void> tapOutsideRing(WidgetTester tester) => tester.tapAt(
+  tester.getTopLeft(find.byKey(const Key('idle-start'))) + const Offset(20, 20),
+);
+
 void main() {
   testWidgets('과목을 추가하고 집중을 시작할 수 있다', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
@@ -18,34 +23,35 @@ void main() {
     expect(find.text('공부할 과목을 먼저 추가하세요'), findsOneWidget);
     await tester.tap(find.text('과목 추가'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('과목 추가').last);
+    await tester.tap(find.text('과목 추가')); // 목록 맨 아래 줄
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '수학');
     await tester.tap(find.text('저장'));
     await tester.pumpAndSettle();
     expect(find.text('수학'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('설정'));
-    await tester.pumpAndSettle();
-    expect(find.text('0.9.7'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('theme-sage')));
-    await tester.pumpAndSettle();
-    expect(store.settings.colorTheme, 'sage');
-    expect(AppColors.accent, colorThemeById('sage').accent);
-    Navigator.of(tester.element(find.text('0.9.7'))).pop();
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('색 바꾸기'));
+    // 과목을 누르면 이름·색·책 시트
+    await tester.tap(find.text('수학'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('color-${AppStore.palette[2]}')));
     await tester.pumpAndSettle();
     expect(store.subjects.single.color, AppStore.palette[2]);
+    Navigator.of(tester.element(find.byKey(const Key('subject-name')))).pop();
+    await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.timer_outlined));
+    await tester.tap(find.byTooltip('내 정보'));
+    await tester.pumpAndSettle();
+    expect(find.text('0.9.8'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('theme-sage')));
+    await tester.pumpAndSettle();
+    expect(store.settings.colorTheme, 'sage');
+    expect(AppColors.accent, colorThemeById('sage').accent);
+
+    await tester.tap(find.byTooltip('타이머'));
     await tester.pumpAndSettle();
     expect(find.text('25:00'), findsOneWidget);
     expect(find.text('휴식 5분'), findsOneWidget);
-    await tester.tap(find.text('시작'));
+    await tapOutsideRing(tester);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('25:00'), findsOneWidget);
@@ -71,9 +77,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(store.timer.phase, Phase.idle);
     expect(find.textContaining('블록 완료'), findsNothing); // 일찍 끝낸 블록은 안 셈
-    expect(find.text('딴생각 메모 1개'), findsOneWidget);
+    await tester.tap(find.byTooltip('내 정보'));
+    await tester.pumpAndSettle();
+    expect(find.text('딴생각 메모 (1개 남음)'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.bar_chart_outlined));
+    await tester.tap(find.byTooltip('통계'));
     await tester.pumpAndSettle();
     expect(find.text('총 시간'), findsOneWidget);
     for (final tab in ['달력', '패턴']) {
@@ -94,7 +102,7 @@ void main() {
     await tester.pumpWidget(StudyTimerApp(store: store));
     expect(find.text('상법'), findsNothing); // 첫 화면에는 과목 이름이 없음
 
-    await tester.tap(find.text('시작'));
+    await tapOutsideRing(tester);
     await tester.pumpAndSettle();
     expect(find.text('무엇을 공부할까요?'), findsOneWidget);
     await tester.tap(find.text('상법'));

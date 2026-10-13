@@ -234,6 +234,30 @@ class AppStore extends ChangeNotifier {
     return best == null ? null : (book: best.book, progress: best.progress);
   }
 
+  /// 이 과목의 책을 최근에 쓴 순서로 (안 쓴 책은 등록한 순서대로 뒤에).
+  List<String> recentBooks(String subjectId) {
+    final s = _subjects[subjectId];
+    if (s == null) return const [];
+    final used = <String, DateTime>{};
+    for (final x in _sessions.values) {
+      if (x.deleted || x.book.isEmpty) continue;
+      final t = used[x.book];
+      if (t == null || x.endedAt.isAfter(t)) used[x.book] = x.endedAt;
+    }
+    final books = [...s.books];
+    final epoch = DateTime.utc(1970);
+    books.sort((a, b) => (used[b] ?? epoch).compareTo(used[a] ?? epoch));
+    return books;
+  }
+
+  /// 삭제한 과목 되돌리기.
+  void restoreSubject(String id) {
+    final s = _subjects[id];
+    if (s == null || !s.deleted) return;
+    _subjects[id] = s.copyWith(deleted: false);
+    _changed();
+  }
+
   void deleteSubject(String id) {
     final s = _subjects[id];
     if (s == null) return;
@@ -268,7 +292,7 @@ class AppStore extends ChangeNotifier {
       distractions: old?.distractions ?? 0,
       distractedSeconds: old?.distractedSeconds ?? 0,
       book: book.trim(),
-      progress: progress.trim(),
+      progress: normalizeProgress(progress),
       updatedAt: now,
     );
     _sessions[s.id] = s;
@@ -402,6 +426,7 @@ class AppStore extends ChangeNotifier {
     String note = '',
     String book = '',
     String progress = '',
+    String? subjectId,
   }) {
     final (session, next) = TimerLogic.submitRecall(
       _timer,
@@ -410,8 +435,9 @@ class AppStore extends ChangeNotifier {
       recallNote: note,
     );
     _sessions[session.id] = session.copyWith(
+      subjectId: subjectId,
       book: book.trim(),
-      progress: progress.trim(),
+      progress: normalizeProgress(progress),
     );
     _setTimer(
       next.blocksDone > _timer.blocksDone

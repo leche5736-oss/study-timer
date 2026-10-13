@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/store.dart';
 import '../theme.dart';
+import 'dock.dart';
 
 class SubjectsTab extends StatelessWidget {
   final AppStore store;
@@ -11,191 +12,295 @@ class SubjectsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subjects = store.subjects;
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
+    // 꾹 눌러 끌면 순서가 바뀌고, 왼쪽으로 밀면 삭제, 오른쪽으로 밀면 책.
+    return ReorderableListView(
+      buildDefaultDragHandles: false,
+      onReorderItem: (from, to) {
+        final ids = subjects.map((s) => s.id).toList();
+        ids.insert(to, ids.removeAt(from));
+        store.reorderSubjects(ids);
+      },
+      footer: _AddRow(
+        label: '과목 추가',
+        onTap: () async {
           final name = await _askName(context, title: '과목 추가');
           if (name != null) store.addSubject(name);
         },
-        icon: const Icon(Icons.add),
-        label: const Text('과목 추가'),
       ),
-      body: subjects.isEmpty
-          ? const Center(child: Text('아직 과목이 없어요. 아래 버튼으로 추가하세요.'))
-          // 왼쪽 손잡이를 잡고 끌어서 순서를 바꿉니다.
-          : ReorderableListView(
-              buildDefaultDragHandles: false,
-              onReorderItem: (from, to) {
-                final ids = subjects.map((s) => s.id).toList();
-                ids.insert(to, ids.removeAt(from));
-                store.reorderSubjects(ids);
-              },
+      children: [
+        for (final (i, s) in subjects.indexed)
+          ReorderableDelayedDragStartListener(
+            key: ValueKey(s.id),
+            index: i,
+            child: _row(context, s),
+          ),
+      ],
+    );
+  }
+
+  Widget _row(BuildContext context, Subject s) {
+    const label = TextStyle(color: Colors.white, fontSize: 15);
+    return Dismissible(
+      key: ValueKey('swipe-${s.id}'),
+      dismissThresholds: const {
+        DismissDirection.startToEnd: 0.25,
+        DismissDirection.endToStart: 0.4,
+      },
+      // 오른쪽으로 밀면: 책 (파란색)
+      background: Container(
+        color: const Color(0xFF5B8DEF),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        child: const Text('책', style: label),
+      ),
+      // 왼쪽으로 밀면: 삭제 (빨간색)
+      secondaryBackground: Container(
+        color: const Color(0xFFE5484D),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        child: const Text('삭제', style: label),
+      ),
+      confirmDismiss: (dir) async {
+        if (dir == DismissDirection.startToEnd) {
+          openSubjectSheet(context, store, s.id);
+          return false;
+        }
+        return true;
+      },
+      onDismissed: (_) => _delete(context, s),
+      child: GestureDetector(
+        // Mac: 오른쪽 클릭 메뉴
+        onSecondaryTapUp: (d) => _menu(context, s, d.globalPosition),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+          leading: CircleAvatar(radius: 6, backgroundColor: s.colorValue),
+          minLeadingWidth: 12,
+          title: Text(s.name, style: const TextStyle(fontSize: 17)),
+          trailing: s.books.isEmpty
+              ? null
+              : Text(
+                  '책 ${s.books.length}',
+                  style: const TextStyle(color: AppColors.faint, fontSize: 13),
+                ),
+          onTap: () => openSubjectSheet(context, store, s.id),
+        ),
+      ),
+    );
+  }
+
+  /// 지우고 바로 되돌릴 수 있게 알려 줍니다.
+  void _delete(BuildContext context, Subject s) {
+    store.deleteSubject(s.id);
+    showDockSnack(
+      context,
+      '"${s.name}" 삭제함 · 지난 기록은 통계에 남아요',
+      actionLabel: '되돌리기',
+      onAction: () => store.restoreSubject(s.id),
+    );
+  }
+
+  Future<void> _menu(BuildContext context, Subject s, Offset at) async {
+    final picked = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
+      items: const [
+        PopupMenuItem(value: 'books', child: Text('책')),
+        PopupMenuItem(value: 'edit', child: Text('이름 · 색')),
+        PopupMenuItem(value: 'delete', child: Text('삭제')),
+      ],
+    );
+    if (!context.mounted) return;
+    switch (picked) {
+      case 'books' || 'edit':
+        openSubjectSheet(context, store, s.id);
+      case 'delete':
+        _delete(context, s);
+    }
+  }
+}
+
+/// 과목 시트: 이름, 색, 책을 한 곳에서 고칩니다.
+Future<void> openSubjectSheet(
+  BuildContext context,
+  AppStore store,
+  String subjectId,
+) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (c) => _SubjectSheet(store: store, subjectId: subjectId),
+  );
+}
+
+class _SubjectSheet extends StatefulWidget {
+  final AppStore store;
+  final String subjectId;
+  const _SubjectSheet({required this.store, required this.subjectId});
+
+  @override
+  State<_SubjectSheet> createState() => _SubjectSheetState();
+}
+
+class _SubjectSheetState extends State<_SubjectSheet> {
+  AppStore get store => widget.store;
+  late final _name = TextEditingController(
+    text: store.subject(widget.subjectId)?.name ?? '',
+  );
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _saveName() {
+    final n = _name.text.trim();
+    final s = store.subject(widget.subjectId);
+    if (s != null && n.isNotEmpty && n != s.name) store.renameSubject(s.id, n);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        final s = store.subject(widget.subjectId);
+        if (s == null) return const SizedBox.shrink();
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
               children: [
-                for (final (i, s) in subjects.indexed)
+                TextField(
+                  key: const Key('subject-name'),
+                  controller: _name,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: '과목 이름',
+                    filled: false,
+                    border: InputBorder.none,
+                  ),
+                  onSubmitted: (_) => _saveName(),
+                  onTapOutside: (_) => _saveName(),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final color in AppStore.palette)
+                      InkWell(
+                        key: ValueKey('color-$color'),
+                        customBorder: const CircleBorder(),
+                        onTap: () => store.setSubjectColor(s.id, color),
+                        child: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Color(color),
+                          child: color == s.color
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: AppColors.ink,
+                                )
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  '책',
+                  style: TextStyle(color: AppColors.grey, fontSize: 13),
+                ),
+                for (final b in s.books)
                   ListTile(
-                    key: ValueKey(s.id),
-                    leading: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ReorderableDragStartListener(
-                          index: i,
-                          child: const MouseRegion(
-                            cursor: SystemMouseCursors.grab,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              child: Icon(
-                                Icons.drag_indicator,
-                                color: AppColors.faint,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // 색 동그라미를 누르면 바로 색을 고릅니다.
-                        IconButton(
-                          tooltip: '색 바꾸기',
-                          onPressed: () async {
-                            final color = await _askColor(context, s);
-                            if (color != null) {
-                              store.setSubjectColor(s.id, color);
-                            }
-                          },
-                          icon: CircleAvatar(
-                            backgroundColor: s.colorValue,
-                            radius: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                    title: Text(s.name),
-                    subtitle: s.books.isEmpty
-                        ? null
-                        : Text(
-                            s.books.join(' · '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: AppColors.grey),
-                          ),
-                    onTap: () async {
-                      final name = await _askName(
-                        context,
-                        title: '이름 바꾸기',
-                        initial: s.name,
-                      );
-                      if (name != null) store.renameSubject(s.id, name);
-                    },
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: '책',
-                          icon: const Icon(Icons.menu_book_outlined),
-                          onPressed: () => _editBooks(context, s.id),
-                        ),
-                        IconButton(
-                          tooltip: '삭제',
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _confirmDelete(context, s),
-                        ),
-                      ],
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(b),
+                    trailing: IconButton(
+                      tooltip: '빼기',
+                      icon: const Icon(Icons.close, size: 18),
+                      color: AppColors.faint,
+                      onPressed: () => store.setSubjectBooks(
+                        s.id,
+                        s.books.where((x) => x != b).toList(),
+                      ),
                     ),
                   ),
+                _AddRow(
+                  label: '새 책',
+                  padding: EdgeInsets.zero,
+                  onTap: () async {
+                    final name = await askBookName(context, s.name);
+                    if (name != null) {
+                      store.setSubjectBooks(s.id, [...s.books, name]);
+                    }
+                  },
+                ),
               ],
             ),
-    );
-  }
-
-  /// 과목에서 쓰는 책 목록. 공부를 마칠 때 여기서 책을 골라 진도를 적습니다.
-  Future<void> _editBooks(BuildContext context, String subjectId) {
-    final add = TextEditingController();
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (c) => ListenableBuilder(
-        listenable: store,
-        builder: (context, _) {
-          final s = store.subject(subjectId);
-          if (s == null) return const SizedBox.shrink();
-          void submit() {
-            final name = add.text.trim();
-            if (name.isEmpty) return;
-            store.setSubjectBooks(s.id, [...s.books, name]);
-            add.clear();
-          }
-
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: SafeArea(
-              child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                children: [
-                  Text(
-                    '${s.name} 책',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '공부를 마칠 때 책을 고르고 어디까지 봤는지 적을 수 있어요.',
-                    style: TextStyle(color: AppColors.grey, fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  for (final b in s.books)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(b),
-                      trailing: IconButton(
-                        tooltip: '빼기',
-                        icon: const Icon(Icons.close),
-                        onPressed: () => store.setSubjectBooks(
-                          s.id,
-                          s.books.where((x) => x != b).toList(),
-                        ),
-                      ),
-                    ),
-                  TextField(
-                    key: const Key('book-add'),
-                    controller: add,
-                    decoration: InputDecoration(
-                      hintText: '책 이름 (예: 민법의 맥 (윤동환))',
-                      suffixIcon: IconButton(
-                        tooltip: '추가',
-                        icon: const Icon(Icons.add),
-                        onPressed: submit,
-                      ),
-                    ),
-                    onSubmitted: (_) => submit(),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(BuildContext context, Subject s) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('"${s.name}" 과목을 삭제할까요?'),
-        content: const Text('지난 기록은 통계에 그대로 남습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('아니요'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+        );
+      },
     );
-    if (ok == true) store.deleteSubject(s.id);
   }
+}
+
+/// 목록 맨 아래의 옅은 "+ 추가" 줄.
+class _AddRow extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final EdgeInsets padding;
+  const _AddRow({
+    required this.label,
+    required this.onTap,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24),
+  });
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: padding,
+    leading: const Icon(Icons.add, size: 20, color: AppColors.grey),
+    minLeadingWidth: 12,
+    title: Text(label, style: const TextStyle(color: AppColors.grey)),
+    onTap: onTap,
+  );
+}
+
+/// 책 이름 묻기. 빈 칸이면 null.
+Future<String?> askBookName(BuildContext context, String subjectName) async {
+  final c = TextEditingController();
+  final name = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('$subjectName 새 책'),
+      content: TextField(
+        key: const Key('book-add'),
+        controller: c,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: '예: 민법의 맥 (윤동환)'),
+        onSubmitted: (v) => Navigator.pop(ctx, v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, c.text),
+          child: const Text('추가'),
+        ),
+      ],
+    ),
+  );
+  final n = name?.trim() ?? '';
+  return n.isEmpty ? null : n;
 }
 
 Future<String?> _askName(
@@ -229,36 +334,5 @@ Future<String?> _askName(
         ],
       );
     },
-  );
-}
-
-Future<int?> _askColor(BuildContext context, Subject s) {
-  return showDialog<int>(
-    context: context,
-    builder: (c) => AlertDialog(
-      title: Text('"${s.name}" 색 고르기'),
-      content: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final color in AppStore.palette)
-            InkWell(
-              key: ValueKey('color-$color'),
-              customBorder: const CircleBorder(),
-              onTap: () => Navigator.pop(c, color),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: Color(color),
-                child: color == s.color
-                    ? const Icon(Icons.check, color: AppColors.ink)
-                    : null,
-              ),
-            ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소')),
-      ],
-    ),
   );
 }

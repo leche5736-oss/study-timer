@@ -1,18 +1,18 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/notifications.dart';
 import '../services/store.dart';
-import '../services/updater.dart';
 import '../stats.dart';
 import '../theme.dart';
 import 'space_key.dart';
 import 'subject_picker.dart';
-import 'thoughts_list.dart';
 
-/// 타이머 첫 화면. 밝은 바탕에 큰 시간, 과목 이름, 시작 버튼만 보입니다.
-/// 시간을 누르면 길이를, 과목 이름을 누르면 과목을 바꿉니다.
+/// 타이머 첫 화면. 오늘 목표 고리 안에 시간만 보입니다.
+/// 고리를 누르면 길이를, 고리 밖을 누르면 과목을 골라 시작합니다.
 class IdleView extends StatefulWidget {
   final AppStore store;
   final VoidCallback onGoToSubjects;
@@ -79,113 +79,91 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
       dayStartHour: store.settings.dayStartHour,
     );
     final goal = store.settings.dailyGoalMin * 60;
-    final open = store.openThoughts.length;
     final blocks = store.blocksToday;
     const grey = TextStyle(color: AppColors.grey, fontSize: 15);
-
-    final clock = <Widget>[
-      GestureDetector(
-        onTap: _pickLength,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            _stopwatch ? '00:00' : formatClock(_length.focusMin * 60),
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 96,
-              fontWeight: FontWeight.w200,
-              letterSpacing: -2,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-      ),
-      GestureDetector(
-        onTap: _pickLength,
-        child: Text(
-          [
-            _stopwatch
-                ? '스톱워치'
-                : _timerMode
-                ? '타이머 · 휴식 없이'
-                : '휴식 ${_length.restMin}분',
-            if (blocks > 0) '$blocks블록 완료',
-          ].join(' · '),
-          style: grey,
-        ),
-      ),
-    ];
-    final start = Material(
-      color: AppColors.accent,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: _start,
-        child: const SizedBox(
-          width: 88,
-          height: 88,
-          child: Center(
-            child: Text(
-              '시작',
-              style: TextStyle(color: Colors.white, fontSize: 17),
-            ),
-          ),
-        ),
-      ),
-    );
     final size = MediaQuery.sizeOf(context);
-    final landscape = size.width > size.height && size.height < 520;
+    final ring = (size.shortestSide * 0.72).clamp(180.0, 320.0);
 
-    return SizedBox(
-      width: double.infinity,
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          Text(
-            goal > 0
-                ? '오늘 ${formatHms(today)} / ${formatHm(goal)}'
-                : '오늘 ${formatHms(today)}',
-            style: grey.copyWith(
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          // Mac 앱: 새 버전이 나오면 알려 줍니다.
-          ValueListenableBuilder(
-            valueListenable: Updater.available,
-            builder: (context, update, _) => update == null
-                ? const SizedBox.shrink()
-                : TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.accent,
+    // 고리 = 오늘 목표까지 얼마나 왔는지. 고리 안을 누르면 길이를,
+    // 고리 밖 아무 데나 누르면 과목을 고르고 바로 시작합니다.
+    return GestureDetector(
+      key: const Key('idle-start'),
+      behavior: HitTestBehavior.opaque,
+      onTap: _start,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: _pickLength,
+                onLongPress: _pickLength,
+                child: SizedBox.square(
+                  dimension: ring,
+                  child: CustomPaint(
+                    painter: _GoalRing(
+                      progress: goal > 0 ? today / goal : 0,
+                      color: AppColors.accent,
                     ),
-                    onPressed: Updater.openDownload,
-                    child: Text('새 버전 ${update.version} 받기'),
+                    child: Padding(
+                      padding: EdgeInsets.all(ring * 0.14),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _stopwatch
+                                  ? '00:00'
+                                  : formatClock(_length.focusMin * 60),
+                              style: const TextStyle(
+                                color: AppColors.ink,
+                                fontSize: 64,
+                                fontWeight: FontWeight.w200,
+                                letterSpacing: -1.5,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                          Text(
+                            [
+                              _stopwatch
+                                  ? '스톱워치'
+                                  : _timerMode
+                                  ? '타이머'
+                                  : '휴식 ${_length.restMin}분',
+                              if (blocks > 0) '$blocks블록 완료',
+                            ].join(' · '),
+                            textAlign: TextAlign.center,
+                            style: grey.copyWith(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-          ),
-          if (open > 0)
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: AppColors.grey),
-              onPressed: _showThoughts,
-              child: Text('딴생각 메모 $open개'),
-            ),
-          const Spacer(),
-          // 가로 화면(폰을 눕힘)에서는 시간과 시작 버튼을 옆으로 나란히.
-          if (landscape)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(mainAxisSize: MainAxisSize.min, children: clock),
-                const SizedBox(width: 64),
-                start,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                goal > 0
+                    ? '오늘 ${formatHms(today)} / ${formatHm(goal)}'
+                    : '오늘 ${formatHms(today)}',
+                style: grey.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              // 처음 몇 번만 쓰는 법을 알려 줍니다.
+              if (store.allSessions.length < 3) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  '고리 밖을 누르면 시작 · 고리를 누르면 길이 바꾸기',
+                  style: TextStyle(color: AppColors.faint, fontSize: 13),
+                ),
               ],
-            )
-          else ...[
-            ...clock,
-            const SizedBox(height: 56),
-            start,
-          ],
-          const Spacer(),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -306,18 +284,30 @@ class _IdleViewState extends State<IdleView> with SpaceKeyShortcut {
       _stopwatch = false;
     });
   }
+}
 
-  Future<void> _showThoughts() => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (c) => ListenableBuilder(
-      listenable: store,
-      builder: (context, _) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: ThoughtsList(store: store),
-        ),
-      ),
-    ),
-  );
+/// 오늘 목표 고리. 옅은 바탕 고리 위에 지금까지 한 만큼 색이 찹니다.
+class _GoalRing extends CustomPainter {
+  final double progress;
+  final Color color;
+  const _GoalRing({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 6.0;
+    final rect = (Offset.zero & size).deflate(stroke / 2);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, 0, 2 * pi, false, paint..color = AppColors.line);
+    final p = progress.clamp(0.0, 1.0);
+    if (p > 0) {
+      canvas.drawArc(rect, -pi / 2, 2 * pi * p, false, paint..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GoalRing old) =>
+      old.progress != progress || old.color != color;
 }

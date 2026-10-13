@@ -100,13 +100,14 @@ class StudySession {
   });
 
   StudySession copyWith({
+    String? subjectId,
     bool? deleted,
     String? restType,
     String? book,
     String? progress,
   }) => StudySession(
     id: id,
-    subjectId: subjectId,
+    subjectId: subjectId ?? this.subjectId,
     startedAt: startedAt,
     endedAt: endedAt,
     plannedMinutes: plannedMinutes,
@@ -522,4 +523,10 @@ class ThoughtNote {
     createdAt: _parse(j['created_at'])!,
     done: j['done'] as bool? ?? false,
   );
+}
+
+/// 진도에 숫자만 적으면 쪽수로 봅니다. "120" → "120쪽".
+String normalizeProgress(String text) {
+  final t = text.trim();
+  return RegExp(r'^\d+$').hasMatch(t) ? '$t쪽' : t;
 }

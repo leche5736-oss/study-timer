@@ -177,6 +177,9 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
       ],
     );
 
+    // 안내 문구는 처음 세 번만.
+    final hint = widget.store.allSessions.length < 3;
+
     // 한 시간이 넘으면(1:05:09) 글자가 길어지니 조금 작게.
     final clockScale = shownSec >= 3600 ? 0.72 : 1.0;
     Widget clock(double fontSize) => Text(
@@ -213,7 +216,7 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             clock(140),
-                            Text('화면을 누르면 버튼이 나와요', style: small),
+                            if (hint) Text('화면을 누르면 버튼이 나와요', style: small),
                           ],
                         ))
                 : ConstrainedBox(
@@ -231,7 +234,8 @@ class _FocusScreenState extends State<FocusScreen> with SpaceKeyShortcut {
                             child: controls,
                           ),
                         ),
-                        if (!visible) Text('화면을 누르면 버튼이 나와요', style: small),
+                        if (!visible && hint)
+                          Text('화면을 누르면 버튼이 나와요', style: small),
                       ],
                     ),
                   );

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../services/store.dart';
 import '../stats.dart';
+import '../theme.dart';
+import 'dock.dart';
 import 'session_editor.dart';
 
 String _formatDate(DateTime utc) {
@@ -18,22 +20,36 @@ class HistoryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sessions = store.sessions;
-    return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(context, null),
-        icon: const Icon(Icons.add),
-        label: const Text('기록 추가'),
-      ),
-      body: sessions.isEmpty
-          ? const Center(child: Text('끝낸 집중 블록이 여기에 쌓여요.'))
-          : _list(context, sessions),
+    if (sessions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '끝낸 집중 블록이 여기에 쌓여요.',
+              style: TextStyle(color: AppColors.grey),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => _openEditor(context, null),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('기록 추가'),
+            ),
+          ],
+        ),
+      );
+    }
+    // 목록을 아래로 당기면 기록 추가.
+    return RefreshIndicator(
+      color: AppColors.accent,
+      onRefresh: () async => _openEditor(context, null),
+      child: _list(context, sessions),
     );
   }
 
   void _openEditor(BuildContext context, StudySession? s) {
     if (store.subjects.isEmpty && s == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('먼저 과목을 추가하세요.')));
+      showDockSnack(context, '먼저 과목을 추가하세요.');
       return;
     }
     Navigator.push(
@@ -46,11 +62,22 @@ class HistoryTab extends StatelessWidget {
 
   Widget _list(BuildContext context, List<StudySession> sessions) {
     return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 88),
-      itemCount: sessions.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: sessions.length + 1,
+      separatorBuilder: (_, i) =>
+          i == 0 ? const SizedBox.shrink() : const Divider(height: 1),
       itemBuilder: (context, i) {
-        final s = sessions[i];
+        if (i == 0) {
+          return const Padding(
+            padding: EdgeInsets.only(bottom: 4),
+            child: Text(
+              '↓ 당겨서 기록 추가',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.faint, fontSize: 12),
+            ),
+          );
+        }
+        final s = sessions[i - 1];
         final subject = store.subject(s.subjectId);
         return ExpansionTile(
           leading: CircleAvatar(

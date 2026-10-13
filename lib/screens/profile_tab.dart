@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -6,213 +7,272 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config.dart';
 import '../services/notifications.dart';
 import '../services/store.dart';
+import '../services/sync.dart';
 import '../services/sync_config.dart';
+import '../services/updater.dart';
 import '../services/window.dart';
 import '../theme.dart';
 import '../version.dart';
+import 'thoughts_list.dart';
 
-class SettingsScreen extends StatelessWidget {
+/// 내 정보: 계정·동기화, 알릴 것(새 버전, 딴생각 메모), 설정.
+class ProfileTab extends StatelessWidget {
   final AppStore store;
-  const SettingsScreen({super.key, required this.store});
+
+  /// 동기화가 꺼져 있으면 null.
+  final SyncService? sync;
+  const ProfileTab({super.key, required this.store, this.sync});
 
   @override
   Widget build(BuildContext context) {
     final isMac = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
-    return Scaffold(
-      appBar: AppBar(title: const Text('설정')),
-      body: ListenableBuilder(
-        listenable: store,
-        builder: (context, _) {
-          final s = store.settings;
-          return ListView(
-            children: [
-              const _Header('색 테마'),
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        final s = store.settings;
+        return ListView(
+          children: [
+            ..._account(context),
+            // Mac 앱: 새 버전이 나오면 알려 줍니다.
+            ValueListenableBuilder(
+              valueListenable: Updater.available,
+              builder: (context, update, _) => update == null
+                  ? const SizedBox.shrink()
+                  : ListTile(
+                      leading: _dot(AppColors.accent),
+                      title: Text('새 버전 ${update.version}이 나왔어요'),
+                      subtitle: const Text('누르면 받는 방법을 열어요'),
+                      onTap: Updater.openDownload,
+                    ),
+            ),
+            if (store.thoughts.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Wrap(
-                  spacing: 20,
-                  runSpacing: 12,
-                  children: [
-                    for (final t in colorThemes)
-                      _ThemeChoice(
-                        theme: t,
-                        selected: t.id == colorThemeById(s.colorTheme).id,
-                        onTap: () =>
-                            store.updateSettings(s.copyWith(colorTheme: t.id)),
-                      ),
-                  ],
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                child: ThoughtsList(store: store),
               ),
-              const _Header('오늘 목표'),
-              _MinutesTile(
-                title: '하루 목표 공부 시간',
-                subtitle: s.dailyGoalMin == 0 ? '목표 없음' : null,
-                minutes: s.dailyGoalMin,
-                min: 0,
-                max: 960,
-                step: 30,
+            const _Header('색 테마'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Wrap(
+                spacing: 20,
+                runSpacing: 12,
+                children: [
+                  for (final t in colorThemes)
+                    _ThemeChoice(
+                      theme: t,
+                      selected: t.id == colorThemeById(s.colorTheme).id,
+                      onTap: () =>
+                          store.updateSettings(s.copyWith(colorTheme: t.id)),
+                    ),
+                ],
+              ),
+            ),
+            const _Header('오늘 목표'),
+            _MinutesTile(
+              title: '하루 목표 공부 시간',
+              subtitle: s.dailyGoalMin == 0 ? '목표 없음' : null,
+              minutes: s.dailyGoalMin,
+              min: 0,
+              max: 960,
+              step: 30,
+              onChanged: (v) =>
+                  store.updateSettings(s.copyWith(dailyGoalMin: v)),
+            ),
+            ListTile(
+              title: const Text('하루가 바뀌는 시각'),
+              subtitle: Text(
+                '새벽 ${s.dayStartHour}시 전 공부는 전날 기록으로 셉니다 (통계, 오늘 목표)',
+              ),
+              trailing: DropdownButton<int>(
+                value: s.dayStartHour,
+                items: [
+                  for (var h = 0; h <= 8; h++)
+                    DropdownMenuItem(
+                      value: h,
+                      child: Text(h == 0 ? '자정' : '새벽 $h시'),
+                    ),
+                ],
                 onChanged: (v) =>
-                    store.updateSettings(s.copyWith(dailyGoalMin: v)),
+                    store.updateSettings(s.copyWith(dayStartHour: v)),
               ),
-              ListTile(
-                title: const Text('하루가 바뀌는 시각'),
-                subtitle: Text(
-                  '새벽 ${s.dayStartHour}시 전 공부는 전날 기록으로 셉니다 (통계, 오늘 목표)',
-                ),
-                trailing: DropdownButton<int>(
-                  value: s.dayStartHour,
-                  items: [
-                    for (var h = 0; h <= 8; h++)
-                      DropdownMenuItem(
-                        value: h,
-                        child: Text(h == 0 ? '자정' : '새벽 $h시'),
-                      ),
-                  ],
-                  onChanged: (v) =>
-                      store.updateSettings(s.copyWith(dayStartHour: v)),
-                ),
-              ),
-              const _Header('직접 설정 타이머 길이'),
-              _MinutesTile(
-                title: '집중',
-                minutes: s.customFocusMin,
-                min: 5,
-                max: 180,
-                step: 5,
-                onChanged: (v) =>
-                    store.updateSettings(s.copyWith(customFocusMin: v)),
-              ),
-              _MinutesTile(
-                title: '휴식',
-                minutes: s.customRestMin,
-                min: 1,
-                max: 60,
-                step: 1,
-                onChanged: (v) =>
-                    store.updateSettings(s.copyWith(customRestMin: v)),
-              ),
-              _MinutesTile(
-                title: '긴 휴식 (4블록마다)',
-                minutes: s.customLongRestMin,
-                min: 5,
-                max: 60,
-                step: 5,
-                onChanged: (v) =>
-                    store.updateSettings(s.copyWith(customLongRestMin: v)),
-              ),
-              const _Header('알림'),
+            ),
+            const _Header('직접 설정 타이머 길이'),
+            _MinutesTile(
+              title: '집중',
+              minutes: s.customFocusMin,
+              min: 5,
+              max: 180,
+              step: 5,
+              onChanged: (v) =>
+                  store.updateSettings(s.copyWith(customFocusMin: v)),
+            ),
+            _MinutesTile(
+              title: '휴식',
+              minutes: s.customRestMin,
+              min: 1,
+              max: 60,
+              step: 1,
+              onChanged: (v) =>
+                  store.updateSettings(s.copyWith(customRestMin: v)),
+            ),
+            _MinutesTile(
+              title: '긴 휴식 (4블록마다)',
+              minutes: s.customLongRestMin,
+              min: 5,
+              max: 60,
+              step: 5,
+              onChanged: (v) =>
+                  store.updateSettings(s.copyWith(customLongRestMin: v)),
+            ),
+            const _Header('알림'),
+            SwitchListTile(
+              title: const Text('알림 소리'),
+              value: s.sound,
+              onChanged: (v) {
+                Notifications.instance.sound = v;
+                store.updateSettings(s.copyWith(sound: v));
+              },
+            ),
+            if (isMac)
               SwitchListTile(
-                title: const Text('알림 소리'),
-                value: s.sound,
-                onChanged: (v) {
-                  Notifications.instance.sound = v;
-                  store.updateSettings(s.copyWith(sound: v));
-                },
+                title: const Text('시간이 다 되면 앱 창을 앞으로'),
+                subtitle: const Text('다른 앱을 보고 있어도 타이머 창이 맨 앞에 나와요'),
+                value: s.bringToFront,
+                onChanged: (v) =>
+                    store.updateSettings(s.copyWith(bringToFront: v)),
               ),
-              if (isMac)
-                SwitchListTile(
-                  title: const Text('시간이 다 되면 앱 창을 앞으로'),
-                  subtitle: const Text('다른 앱을 보고 있어도 타이머 창이 맨 앞에 나와요'),
-                  value: s.bringToFront,
-                  onChanged: (v) =>
-                      store.updateSettings(s.copyWith(bringToFront: v)),
+            if (isMac) ...[
+              SwitchListTile(
+                title: const Text('메뉴 막대에 항상 표시'),
+                subtitle: const Text(
+                  '화면 맨 위에 오늘 공부 시간(공부 중에는 남은 시간)이 보이고, '
+                  '눌러서 바로 시작할 수 있어요',
                 ),
-              if (isMac) ...[
-                SwitchListTile(
-                  title: const Text('메뉴 막대에 항상 표시'),
-                  subtitle: const Text(
-                    '화면 맨 위에 오늘 공부 시간(공부 중에는 남은 시간)이 보이고, '
-                    '눌러서 바로 시작할 수 있어요',
-                  ),
-                  value: s.menuBar,
-                  onChanged: (v) =>
-                      store.updateSettings(s.copyWith(menuBar: v)),
+                value: s.menuBar,
+                onChanged: (v) => store.updateSettings(s.copyWith(menuBar: v)),
+              ),
+              const _LaunchAtLoginTile(),
+            ],
+            if (isMac) ...[
+              const _Header('딴짓 앱 감지'),
+              SwitchListTile(
+                title: const Text('집중 중 딴짓 앱을 열면 알려 주기'),
+                subtitle: const Text(
+                  '아래 앱이 맨 앞에 오면 알림을 띄우고 딴짓 횟수·시간을 기록해요. '
+                  '브라우저는 앱 단위라 사이트(유튜브 등)는 구분하지 못해요.',
                 ),
-                const _LaunchAtLoginTile(),
-              ],
-              if (isMac) ...[
-                const _Header('딴짓 앱 감지'),
-                SwitchListTile(
-                  title: const Text('집중 중 딴짓 앱을 열면 알려 주기'),
-                  subtitle: const Text(
-                    '아래 앱이 맨 앞에 오면 알림을 띄우고 딴짓 횟수·시간을 기록해요. '
-                    '브라우저는 앱 단위라 사이트(유튜브 등)는 구분하지 못해요.',
-                  ),
-                  value: s.watchApps,
-                  onChanged: (v) =>
-                      store.updateSettings(s.copyWith(watchApps: v)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final app in s.blockedApps)
-                        InputChip(
-                          label: Text(app),
-                          onDeleted: () => store.updateSettings(
-                            s.copyWith(
-                              blockedApps: [
-                                for (final a in s.blockedApps)
-                                  if (a != app) a,
-                              ],
-                            ),
+                value: s.watchApps,
+                onChanged: (v) =>
+                    store.updateSettings(s.copyWith(watchApps: v)),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final app in s.blockedApps)
+                      InputChip(
+                        label: Text(app),
+                        onDeleted: () => store.updateSettings(
+                          s.copyWith(
+                            blockedApps: [
+                              for (final a in s.blockedApps)
+                                if (a != app) a,
+                            ],
                           ),
                         ),
-                      ActionChip(
-                        avatar: const Icon(Icons.add, size: 18),
-                        label: const Text('딴짓 앱 추가'),
-                        onPressed: () => _addApps(context),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-              const _Header('기기 간 동기화'),
-              ValueListenableBuilder<SyncConfig?>(
-                valueListenable: SyncConfig.active,
-                builder: (context, sync, _) => ListTile(
-                  title: Text(sync == null ? '꺼짐 (이 기기에만 저장)' : '켜짐'),
-                  subtitle: Text(
-                    sync == null
-                        ? 'Supabase 주소와 키를 넣으면 Mac, iPhone, iPad 기록이 합쳐져요'
-                        : sync.url,
-                  ),
-                  trailing: sync == null
-                      ? FilledButton(
-                          onPressed: () => _connectSync(context),
-                          child: const Text('연결'),
-                        )
-                      : OutlinedButton(
-                          onPressed: () => SyncConfig.disconnect(store.prefs),
-                          child: const Text('끄기'),
-                        ),
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 18),
+                      label: const Text('딴짓 앱 추가'),
+                      onPressed: () => _addApps(context),
+                    ),
+                  ],
                 ),
               ),
-              ValueListenableBuilder<SyncConfig?>(
-                valueListenable: SyncConfig.active,
-                builder: (context, sync, _) => sync == null
-                    ? const SizedBox.shrink()
-                    : ListTile(
-                        title: const Text('로그아웃'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          Supabase.instance.client.auth.signOut();
-                        },
-                      ),
-              ),
-              const Divider(),
-              ListTile(title: const Text('버전'), trailing: Text(appVersion)),
             ],
-          );
-        },
-      ),
+            const _Header('기기 간 동기화'),
+            ValueListenableBuilder<SyncConfig?>(
+              valueListenable: SyncConfig.active,
+              builder: (context, sync, _) => ListTile(
+                title: Text(sync == null ? '꺼짐 (이 기기에만 저장)' : '켜짐'),
+                subtitle: Text(
+                  sync == null
+                      ? 'Supabase 주소와 키를 넣으면 Mac, iPhone, iPad 기록이 합쳐져요'
+                      : sync.url,
+                ),
+                trailing: sync == null
+                    ? FilledButton(
+                        onPressed: () => _connectSync(context),
+                        child: const Text('연결'),
+                      )
+                    : OutlinedButton(
+                        onPressed: () => SyncConfig.disconnect(store.prefs),
+                        child: const Text('끄기'),
+                      ),
+              ),
+            ),
+            ValueListenableBuilder<SyncConfig?>(
+              valueListenable: SyncConfig.active,
+              builder: (context, sync, _) => sync == null
+                  ? const SizedBox.shrink()
+                  : ListTile(
+                      title: const Text('로그아웃'),
+                      onTap: () => Supabase.instance.client.auth.signOut(),
+                    ),
+            ),
+            const Divider(),
+            ListTile(title: const Text('버전'), trailing: Text(appVersion)),
+          ],
+        );
+      },
     );
+  }
+
+  static Widget _dot(Color color) => Container(
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
+
+  /// 로그인한 계정과 동기화 상태 (안 될 때는 빨간 점과 다시 시도).
+  List<Widget> _account(BuildContext context) {
+    final user = SyncConfig.active.value == null
+        ? null
+        : Supabase.instance.client.auth.currentUser;
+    return [
+      ListTile(
+        leading: const CircleAvatar(
+          backgroundColor: AppColors.fill,
+          child: Icon(CupertinoIcons.person, color: AppColors.grey),
+        ),
+        title: Text(user?.email ?? '로그인 안 함'),
+        subtitle: Text(user == null ? '이 기기에만 저장돼요' : 'Mac, iPhone과 기록을 맞춰요'),
+      ),
+      if (sync != null)
+        ValueListenableBuilder<String?>(
+          valueListenable: sync!.lastError,
+          builder: (context, err, _) => err == null
+              ? const SizedBox.shrink()
+              : ListTile(
+                  leading: _dot(Colors.red),
+                  title: const Text('동기화가 안 되고 있어요'),
+                  subtitle: Text(err),
+                  trailing: TextButton(
+                    onPressed: () {
+                      sync!.pull();
+                      sync!.push();
+                    },
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+        ),
+    ];
   }
 }
 
-extension on SettingsScreen {
+extension on ProfileTab {
   /// Supabase 주소와 키를 받아 동기화를 켭니다.
   Future<void> _connectSync(BuildContext context) async {
     final url = TextEditingController(text: AppConfig.supabaseUrl);
@@ -294,10 +354,6 @@ extension on SettingsScreen {
     );
     url.dispose();
     key.dispose();
-    // 연결되면 로그인 화면이 나오도록 설정 화면을 닫습니다.
-    if (SyncConfig.active.value != null && context.mounted) {
-      Navigator.of(context).popUntil((r) => r.isFirst);
-    }
   }
 
   /// 켜져 있는 앱 중에서 고르거나 이름을 직접 적어 딴짓 앱으로 추가합니다.
