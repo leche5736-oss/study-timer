@@ -131,7 +131,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     };
     final mq = MediaQuery.of(context);
-    final bottom = recall ? mq.padding.bottom : Dock.space + mq.padding.bottom;
+    final bottom = recall
+        ? mq.padding.bottom
+        : Dock.space + Dock.bottomGap(mq.padding);
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -169,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Positioned(
               left: 0,
               right: 0,
-              bottom: mq.padding.bottom + 16,
+              bottom: Dock.bottomGap(mq.padding),
               child: Center(child: _dock()),
             ),
         ],

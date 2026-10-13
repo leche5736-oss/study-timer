@@ -95,3 +95,27 @@ alter table public.subjects add column if not exists sort_order int not null def
 alter table public.subjects add column if not exists books jsonb not null default '[]'::jsonb;
 alter table public.sessions add column if not exists book text not null default '';
 alter table public.sessions add column if not exists progress text not null default '';
+
+-- 0.9.9: 오늘 공부 계획. COSMOS(Claude) 같은 계획 도구가 하루 한 줄씩 써 넣고, 앱은 읽기만 합니다.
+-- items 예: [{"subject":"형법","task":"형법 45강","minutes":120,"book":"형법총론","target":"p.58"}]
+create table if not exists public.daily_plans (
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  day date not null,
+  items jsonb not null default '[]'::jsonb,
+  note text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day)
+);
+alter table public.daily_plans enable row level security;
+drop policy if exists "own plans" on public.daily_plans;
+create policy "own plans" on public.daily_plans
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'daily_plans'
+  ) then
+    alter publication supabase_realtime add table public.daily_plans;
+  end if;
+end $$;

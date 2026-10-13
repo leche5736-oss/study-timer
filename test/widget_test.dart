@@ -41,7 +41,7 @@ void main() {
 
     await tester.tap(find.byTooltip('내 정보'));
     await tester.pumpAndSettle();
-    expect(find.text('0.9.8'), findsOneWidget);
+    expect(find.text('0.9.9'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('theme-sage')));
     await tester.pumpAndSettle();
     expect(store.settings.colorTheme, 'sage');

@@ -53,6 +53,12 @@ class SyncService {
           table: 'timer_state',
           callback: (_) => pull(),
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'daily_plans',
+          callback: (_) => _pullPlan(),
+        )
         .subscribe();
   }
 
@@ -144,6 +150,22 @@ class SyncService {
     } catch (e) {
       lastError.value = '동기화 실패: $e';
       debugPrint(lastError.value);
+    }
+    await _pullPlan();
+  }
+
+  /// 오늘 계획 받기. daily_plans 표가 아직 없어도(SQL을 안 돌렸어도) 조용히 넘어갑니다.
+  Future<void> _pullPlan() async {
+    try {
+      final row = await client
+          .from('daily_plans')
+          .select()
+          .eq('user_id', _uid)
+          .eq('day', store.studyDayKey)
+          .maybeSingle();
+      store.setPlan(row == null ? null : DailyPlan.fromJson(row));
+    } catch (e) {
+      debugPrint('오늘 계획을 받지 못함: $e');
     }
   }
 }

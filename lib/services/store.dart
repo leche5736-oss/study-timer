@@ -19,6 +19,7 @@ class AppStore extends ChangeNotifier {
   static const _kTimer = 'timer';
   static const _kSettings = 'settings';
   static const _kThoughts = 'thoughts';
+  static const _kPlan = 'daily_plan';
 
   final SharedPreferences _prefs;
   final DateTime Function() _clock;
@@ -65,6 +66,57 @@ class AppStore extends ChangeNotifier {
 
   TimerState get timer => _timer;
 
+  DailyPlan? _plan;
+
+  /// 오늘(공부 날짜 기준)의 계획. 없거나 지난 날 계획이면 null.
+  DailyPlan? get todayPlan =>
+      _plan != null && _plan!.day == _todayKey && _plan!.items.isNotEmpty
+      ? _plan
+      : null;
+
+  /// 오늘 목표(분): 계획이 있으면 계획 시간의 합, 없으면 설정의 하루 목표.
+  int get goalMinutes {
+    final planned = todayPlan?.totalMinutes ?? 0;
+    return planned > 0 ? planned : _settings.dailyGoalMin;
+  }
+
+  /// 계획 줄의 과목 이름과 같은 과목 (띄어쓰기·대소문자 무시).
+  Subject? subjectNamed(String name) {
+    String norm(String v) => v.replaceAll(' ', '').toLowerCase();
+    final n = norm(name);
+    if (n.isEmpty) return null;
+    for (final s in subjects) {
+      if (norm(s.name) == n) return s;
+    }
+    return null;
+  }
+
+  /// 오늘 계획에서 이 과목 줄에 적힌 책 (정리 노트의 기본 책으로 씁니다).
+  String? plannedBook(String subjectId) {
+    final s = _subjects[subjectId];
+    if (s == null) return null;
+    for (final i in todayPlan?.items ?? const <PlanItem>[]) {
+      if (i.book.isNotEmpty && subjectNamed(i.subject)?.id == s.id) {
+        return i.book;
+      }
+    }
+    return null;
+  }
+
+  /// 동기화로 받은 계획. 이 앱은 계획을 쓰지 않고 받기만 합니다.
+  void setPlan(DailyPlan? plan) {
+    final a = plan == null ? null : jsonEncode(plan.toJson());
+    final b = _plan == null ? null : jsonEncode(_plan!.toJson());
+    if (a == b) return;
+    _plan = plan;
+    if (a == null) {
+      _prefs.remove(_kPlan);
+    } else {
+      _prefs.setString(_kPlan, a);
+    }
+    notifyListeners();
+  }
+
   Settings get settings => _settings;
 
   StudySession? session(String? id) => id == null ? null : _sessions[id];
@@ -101,6 +153,10 @@ class AppStore extends ChangeNotifier {
           (j) => ThoughtNote.fromJson(j as Map<String, dynamic>),
         ),
       );
+    }
+    final plan = _prefs.getString(_kPlan);
+    if (plan != null) {
+      _plan = DailyPlan.fromJson(jsonDecode(plan) as Map<String, dynamic>);
     }
     final t = _prefs.getString(_kTimer);
     if (t != null) {
@@ -143,6 +199,8 @@ class AppStore extends ChangeNotifier {
     0xFFEBD596, // 노랑
     0xFFC5B3D6, // 라벤더
     0xFFCDB9A6, // 베이지
+    0xFFA7D3E8, // 하늘
+    0xFFF0A898, // 코랄
   ];
 
   /// 0.8.1까지 쓰던 진한 색. 불러올 때 같은 자리의 파스텔 색으로 바꿉니다.
@@ -362,6 +420,9 @@ class AppStore extends ChangeNotifier {
 
   /// 오늘(공부 날짜 기준) 끝까지 채운 블록 수. 날이 바뀌면 0부터 다시 셉니다.
   int get blocksToday => _timer.blocksDay == _todayKey ? _timer.blocksDone : 0;
+
+  /// 오늘 공부 날짜 (YYYY-MM-DD, 하루가 바뀌는 시각 기준).
+  String get studyDayKey => _todayKey;
 
   String get _todayKey =>
       studyDate(now, _settings.dayStartHour).toIso8601String().substring(0, 10);

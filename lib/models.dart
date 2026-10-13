@@ -530,3 +530,62 @@ String normalizeProgress(String text) {
   final t = text.trim();
   return RegExp(r'^\d+$').hasMatch(t) ? '$t쪽' : t;
 }
+
+/// 오늘 공부 계획 한 줄. COSMOS(Claude) 같은 바깥 계획 도구가 Supabase의
+/// daily_plans 표에 써 넣고, 앱은 읽어서 보여 주기만 합니다.
+class PlanItem {
+  final String subject; // 과목 이름 (앱의 과목과 이름으로 맞춥니다)
+  final String task; // 할 일 (예: 형법 45강)
+  final int minutes; // 목표 시간(분), 0이면 시간 목표 없음
+  final String book; // 책 (없으면 빈 칸)
+  final String target; // 어디까지 (예: p.58)
+
+  const PlanItem({
+    required this.subject,
+    this.task = '',
+    this.minutes = 0,
+    this.book = '',
+    this.target = '',
+  });
+
+  factory PlanItem.fromJson(Map<String, dynamic> j) => PlanItem(
+    subject: '${j['subject'] ?? ''}'.trim(),
+    task: '${j['task'] ?? ''}'.trim(),
+    minutes: (j['minutes'] as num?)?.round() ?? 0,
+    book: '${j['book'] ?? ''}'.trim(),
+    target: '${j['target'] ?? ''}'.trim(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'subject': subject,
+    'task': task,
+    'minutes': minutes,
+    'book': book,
+    'target': target,
+  };
+}
+
+class DailyPlan {
+  final String day; // 공부 날짜 YYYY-MM-DD (하루가 바뀌는 시각 기준)
+  final List<PlanItem> items;
+  final String note; // 한 줄 메모 (예: 오늘의 원씽)
+
+  const DailyPlan({required this.day, this.items = const [], this.note = ''});
+
+  int get totalMinutes => items.fold(0, (sum, i) => sum + i.minutes);
+
+  factory DailyPlan.fromJson(Map<String, dynamic> j) => DailyPlan(
+    day: '${j['day']}'.substring(0, 10),
+    items: [
+      for (final i in (j['items'] as List? ?? const []))
+        if (i is Map<String, dynamic>) PlanItem.fromJson(i),
+    ].where((i) => i.subject.isNotEmpty || i.task.isNotEmpty).toList(),
+    note: '${j['note'] ?? ''}'.trim(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'day': day,
+    'items': [for (final i in items) i.toJson()],
+    'note': note,
+  };
+}

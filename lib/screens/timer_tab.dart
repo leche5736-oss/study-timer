@@ -100,8 +100,14 @@ class _RecallViewState extends State<_RecallView> {
     final store = widget.store;
     if (!_bookInit) {
       _bookInit = true;
+      // 오늘 계획에 적힌 책이 먼저, 없으면 지난번에 본 책.
+      final planned = store.plannedBook(subject.id);
       final last = store.lastProgress(subject.id);
-      if (last != null && subject.books.contains(last.book)) _book = last.book;
+      if (planned != null) {
+        _book = planned;
+      } else if (last != null && subject.books.contains(last.book)) {
+        _book = last.book;
+      }
     }
     final last = _book == null
         ? null

@@ -39,42 +39,43 @@ class SubjectsTab extends StatelessWidget {
   }
 
   Widget _row(BuildContext context, Subject s) {
-    const label = TextStyle(color: Colors.white, fontSize: 15);
+    // 왼쪽으로 밀면 삭제. 책·이름은 줄을 눌러 여는 창에서 고칩니다.
     return Dismissible(
       key: ValueKey('swipe-${s.id}'),
-      dismissThresholds: const {
-        DismissDirection.startToEnd: 0.25,
-        DismissDirection.endToStart: 0.4,
-      },
-      // 오른쪽으로 밀면: 책 (파란색)
+      direction: DismissDirection.endToStart,
+      dismissThresholds: const {DismissDirection.endToStart: 0.4},
       background: Container(
-        color: const Color(0xFF5B8DEF),
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 24),
-        child: const Text('책', style: label),
-      ),
-      // 왼쪽으로 밀면: 삭제 (빨간색)
-      secondaryBackground: Container(
         color: const Color(0xFFE5484D),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
-        child: const Text('삭제', style: label),
+        child: const Text(
+          '삭제',
+          style: TextStyle(color: Colors.white, fontSize: 15),
+        ),
       ),
-      confirmDismiss: (dir) async {
-        if (dir == DismissDirection.startToEnd) {
-          openSubjectSheet(context, store, s.id);
-          return false;
-        }
-        return true;
-      },
       onDismissed: (_) => _delete(context, s),
       child: GestureDetector(
         // Mac: 오른쪽 클릭 메뉴
         onSecondaryTapUp: (d) => _menu(context, s, d.globalPosition),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-          leading: CircleAvatar(radius: 6, backgroundColor: s.colorValue),
-          minLeadingWidth: 12,
+          contentPadding: const EdgeInsets.only(left: 12, right: 24),
+          // 색 동그라미를 누르면 바로 옆에 색이 펼쳐집니다.
+          leading: Builder(
+            builder: (dotContext) => InkResponse(
+              key: ValueKey('dot-${s.id}'),
+              radius: 20,
+              onTap: () => _pickColor(dotContext, s),
+              child: SizedBox(
+                width: 32,
+                height: 40,
+                child: Center(
+                  child: CircleAvatar(radius: 7, backgroundColor: s.colorValue),
+                ),
+              ),
+            ),
+          ),
+          minLeadingWidth: 32,
+          horizontalTitleGap: 8,
           title: Text(s.name, style: const TextStyle(fontSize: 17)),
           trailing: s.books.isEmpty
               ? null
@@ -86,6 +87,26 @@ class SubjectsTab extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 동그라미 옆에 색 줄을 띄우고, 고르면 바로 바뀝니다.
+  Future<void> _pickColor(BuildContext dotContext, Subject s) async {
+    final box = dotContext.findRenderObject() as RenderBox;
+    final overlay =
+        Overlay.of(dotContext).context.findRenderObject() as RenderBox;
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final color = await showMenu<int>(
+      context: dotContext,
+      position: RelativeRect.fromLTRB(
+        topLeft.dx + box.size.width,
+        topLeft.dy,
+        overlay.size.width - topLeft.dx - box.size.width,
+        overlay.size.height - topLeft.dy,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      items: [_ColorStrip(selected: s.color)],
+    );
+    if (color != null) store.setSubjectColor(s.id, color);
   }
 
   /// 지우고 바로 되돌릴 수 있게 알려 줍니다.
@@ -104,14 +125,13 @@ class SubjectsTab extends StatelessWidget {
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: const [
-        PopupMenuItem(value: 'books', child: Text('책')),
-        PopupMenuItem(value: 'edit', child: Text('이름 · 색')),
+        PopupMenuItem(value: 'books', child: Text('책 · 이름 · 색')),
         PopupMenuItem(value: 'delete', child: Text('삭제')),
       ],
     );
     if (!context.mounted) return;
     switch (picked) {
-      case 'books' || 'edit':
+      case 'books':
         openSubjectSheet(context, store, s.id);
       case 'delete':
         _delete(context, s);
@@ -334,5 +354,49 @@ Future<String?> _askName(
         ],
       );
     },
+  );
+}
+
+/// 색 고르기 줄: 동그라미 여러 개를 한 줄(넘치면 두 줄)로.
+class _ColorStrip extends PopupMenuEntry<int> {
+  final int selected;
+  const _ColorStrip({required this.selected});
+
+  @override
+  double get height => 48;
+
+  @override
+  bool represents(int? value) => false;
+
+  @override
+  State<_ColorStrip> createState() => _ColorStripState();
+}
+
+class _ColorStripState extends State<_ColorStrip> {
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 200),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final color in AppStore.palette)
+            InkResponse(
+              key: ValueKey('color-$color'),
+              radius: 18,
+              onTap: () => Navigator.pop(context, color),
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: Color(color),
+                child: color == widget.selected
+                    ? const Icon(Icons.check, size: 16, color: AppColors.ink)
+                    : null,
+              ),
+            ),
+        ],
+      ),
+    ),
   );
 }
