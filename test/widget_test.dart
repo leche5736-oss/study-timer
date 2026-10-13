@@ -30,18 +30,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('수학'), findsOneWidget);
 
-    // 과목을 누르면 이름·색·책 시트
-    await tester.tap(find.text('수학'));
+    // 색 동그라미를 누르면 색 줄
+    await tester.tap(find.byKey(ValueKey('dot-${store.subjects.single.id}')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('color-${AppStore.palette[2]}')));
     await tester.pumpAndSettle();
     expect(store.subjects.single.color, AppStore.palette[2]);
+
+    // 과목을 누르면 이름·책 시트 (색 고르기는 없음)
+    await tester.tap(find.text('수학'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('color-${AppStore.palette[2]}')), findsNothing);
     Navigator.of(tester.element(find.byKey(const Key('subject-name')))).pop();
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('내 정보'));
     await tester.pumpAndSettle();
-    expect(find.text('0.9.10'), findsOneWidget);
+    expect(find.text('0.9.11'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('theme-sage')));
     await tester.pumpAndSettle();
     expect(store.settings.colorTheme, 'sage');

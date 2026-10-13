@@ -125,7 +125,7 @@ class SubjectsTab extends StatelessWidget {
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: const [
-        PopupMenuItem(value: 'books', child: Text('책 · 이름 · 색')),
+        PopupMenuItem(value: 'books', child: Text('책 · 이름')),
         PopupMenuItem(value: 'delete', child: Text('삭제')),
       ],
     );
@@ -139,7 +139,7 @@ class SubjectsTab extends StatelessWidget {
   }
 }
 
-/// 과목 시트: 이름, 색, 책을 한 곳에서 고칩니다.
+/// 과목 시트: 이름과 책을 고칩니다 (색은 목록의 동그라미에서).
 Future<void> openSubjectSheet(
   BuildContext context,
   AppStore store,
@@ -209,30 +209,6 @@ class _SubjectSheetState extends State<_SubjectSheet> {
                   ),
                   onSubmitted: (_) => _saveName(),
                   onTapOutside: (_) => _saveName(),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final color in AppStore.palette)
-                      InkWell(
-                        key: ValueKey('color-$color'),
-                        customBorder: const CircleBorder(),
-                        onTap: () => store.setSubjectColor(s.id, color),
-                        child: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: Color(color),
-                          child: color == s.color
-                              ? const Icon(
-                                  Icons.check,
-                                  size: 16,
-                                  color: AppColors.ink,
-                                )
-                              : null,
-                        ),
-                      ),
-                  ],
                 ),
                 const SizedBox(height: 24),
                 const Text(
