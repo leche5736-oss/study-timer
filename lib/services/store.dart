@@ -1,0 +1,571 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+import '../models.dart';
+import '../stats.dart';
+import '../timer_logic.dart';
+
+const _uuid = Uuid();
+
+/// 앱의 모든 데이터를 들고 있고 이 기기에 저장합니다.
+/// 동기화가 켜져 있으면 [onLocalChange]로 바뀐 사실을 알려 서버에 올리게 합니다.
+class AppStore extends ChangeNotifier {
+  static const _kSubjects = 'subjects';
+  static const _kSessions = 'sessions';
+  static const _kTimer = 'timer';
+  static const _kSettings = 'settings';
+  static const _kThoughts = 'thoughts';
+  static const _kPlan = 'daily_plan';
+
+  final SharedPreferences _prefs;
+  final DateTime Function() _clock;
+
+  final Map<String, Subject> _subjects = {};
+  final Map<String, StudySession> _sessions = {};
+  TimerState _timer = TimerState.initial();
+  Settings _settings = const Settings();
+  final List<ThoughtNote> _thoughts = [];
+
+  /// 사용자가 이 기기에서 무언가 바꿨을 때 호출됩니다.
+  void Function()? onLocalChange;
+
+  /// 타이머 단계가 바뀌었을 때 호출됩니다(알림 예약용).
+  void Function(TimerState previous, TimerState next)? onTimerChanged;
+
+  Timer? _ticker;
+
+  AppStore(this._prefs, {DateTime Function()? clock})
+    : _clock = clock ?? (() => DateTime.now().toUtc()) {
+    _load();
+  }
+
+  DateTime get now => _clock();
+
+  SharedPreferences get prefs => _prefs;
+
+  List<Subject> get subjects =>
+      _subjects.values.where((s) => !s.deleted).toList()..sort(
+        (a, b) => a.order != b.order
+            ? a.order.compareTo(b.order)
+            : a.name.compareTo(b.name),
+      );
+
+  List<Subject> get allSubjects => _subjects.values.toList();
+
+  Subject? subject(String? id) => id == null ? null : _subjects[id];
+
+  List<StudySession> get sessions =>
+      _sessions.values.where((s) => !s.deleted).toList()
+        ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+
+  List<StudySession> get allSessions => _sessions.values.toList();
+
+  TimerState get timer => _timer;
+
+  DailyPlan? _plan;
+
+  /// 오늘(공부 날짜 기준)의 계획. 없거나 지난 날 계획이면 null.
+  DailyPlan? get todayPlan =>
+      _plan != null && _plan!.day == _todayKey && _plan!.items.isNotEmpty
+      ? _plan
+      : null;
+
+  /// 오늘 목표(분): 계획이 있으면 계획 시간의 합, 없으면 설정의 하루 목표.
+  int get goalMinutes {
+    final planned = todayPlan?.totalMinutes ?? 0;
+    return planned > 0 ? planned : _settings.dailyGoalMin;
+  }
+
+  /// 계획 줄의 과목 이름과 같은 과목 (띄어쓰기·대소문자 무시).
+  Subject? subjectNamed(String name) {
+    String norm(String v) => v.replaceAll(' ', '').toLowerCase();
+    final n = norm(name);
+    if (n.isEmpty) return null;
+    for (final s in subjects) {
+      if (norm(s.name) == n) return s;
+    }
+    return null;
+  }
+
+  /// 오늘 계획에서 이 과목 줄에 적힌 책 (정리 노트의 기본 책으로 씁니다).
+  String? plannedBook(String subjectId) {
+    final s = _subjects[subjectId];
+    if (s == null) return null;
+    for (final i in todayPlan?.items ?? const <PlanItem>[]) {
+      if (i.book.isNotEmpty && subjectNamed(i.subject)?.id == s.id) {
+        return i.book;
+      }
+    }
+    return null;
+  }
+
+  /// 동기화로 받은 계획. 이 앱은 계획을 쓰지 않고 받기만 합니다.
+  void setPlan(DailyPlan? plan) {
+    final a = plan == null ? null : jsonEncode(plan.toJson());
+    final b = _plan == null ? null : jsonEncode(_plan!.toJson());
+    if (a == b) return;
+    _plan = plan;
+    if (a == null) {
+      _prefs.remove(_kPlan);
+    } else {
+      _prefs.setString(_kPlan, a);
+    }
+    notifyListeners();
+  }
+
+  Settings get settings => _settings;
+
+  StudySession? session(String? id) => id == null ? null : _sessions[id];
+
+  /// 딴생각 메모 (오래된 것부터).
+  List<ThoughtNote> get thoughts => List.unmodifiable(_thoughts);
+  List<ThoughtNote> get openThoughts =>
+      _thoughts.where((t) => !t.done).toList();
+
+  void _load() {
+    final subj = _prefs.getString(_kSubjects);
+    if (subj != null) {
+      for (final j in jsonDecode(subj) as List) {
+        final s = Subject.fromJson(j as Map<String, dynamic>);
+        _subjects[s.id] = s;
+      }
+      _pastelize();
+    }
+    final sess = _prefs.getString(_kSessions);
+    if (sess != null) {
+      for (final j in jsonDecode(sess) as List) {
+        final s = StudySession.fromJson(j as Map<String, dynamic>);
+        _sessions[s.id] = s;
+      }
+    }
+    final st = _prefs.getString(_kSettings);
+    if (st != null) {
+      _settings = Settings.fromJson(jsonDecode(st) as Map<String, dynamic>);
+    }
+    final th = _prefs.getString(_kThoughts);
+    if (th != null) {
+      _thoughts.addAll(
+        (jsonDecode(th) as List).map(
+          (j) => ThoughtNote.fromJson(j as Map<String, dynamic>),
+        ),
+      );
+    }
+    final plan = _prefs.getString(_kPlan);
+    if (plan != null) {
+      _plan = DailyPlan.fromJson(jsonDecode(plan) as Map<String, dynamic>);
+    }
+    final t = _prefs.getString(_kTimer);
+    if (t != null) {
+      _timer = TimerState.fromJson(jsonDecode(t) as Map<String, dynamic>);
+    }
+  }
+
+  Future<void> _save() async {
+    await _prefs.setString(
+      _kSubjects,
+      jsonEncode(_subjects.values.map((s) => s.toJson()).toList()),
+    );
+    await _prefs.setString(
+      _kSessions,
+      jsonEncode(_sessions.values.map((s) => s.toJson()).toList()),
+    );
+    await _prefs.setString(_kTimer, jsonEncode(_timer.toJson()));
+    await _prefs.setString(_kSettings, jsonEncode(_settings.toJson()));
+    await _prefs.setString(
+      _kThoughts,
+      jsonEncode(_thoughts.map((t) => t.toJson()).toList()),
+    );
+  }
+
+  void _changed({bool local = true}) {
+    _save();
+    notifyListeners();
+    if (local) onLocalChange?.call();
+  }
+
+  // ---------- 과목 ----------
+
+  /// 과목 색 (파스텔).
+  static const palette = [
+    0xFF9DB4D6, // 파랑
+    0xFFEDBB9A, // 살구
+    0xFFE6A6AB, // 분홍
+    0xFFA3CFC8, // 민트
+    0xFFB6D0A0, // 연두
+    0xFFEBD596, // 노랑
+    0xFFC5B3D6, // 라벤더
+    0xFFCDB9A6, // 베이지
+    0xFFA7D3E8, // 하늘
+    0xFFF0A898, // 코랄
+  ];
+
+  /// 0.8.1까지 쓰던 진한 색. 불러올 때 같은 자리의 파스텔 색으로 바꿉니다.
+  static const _oldPalette = [
+    0xFF4E79A7,
+    0xFFF28E2B,
+    0xFFE15759,
+    0xFF76B7B2,
+    0xFF59A14F,
+    0xFFEDC948,
+    0xFFB07AA1,
+    0xFF9C755F,
+  ];
+
+  void _pastelize() {
+    for (final s in _subjects.values.toList()) {
+      final i = _oldPalette.indexOf(s.color);
+      if (i < 0) continue;
+      _subjects[s.id] = Subject(
+        id: s.id,
+        name: s.name,
+        color: palette[i],
+        order: s.order,
+        deleted: s.deleted,
+        updatedAt: s.updatedAt,
+      );
+    }
+  }
+
+  /// 과목 순서를 바꿉니다. [ids]는 위에서부터의 새 순서.
+  void reorderSubjects(List<String> ids) {
+    for (var i = 0; i < ids.length; i++) {
+      final s = _subjects[ids[i]];
+      if (s != null && s.order != i) _subjects[s.id] = s.copyWith(order: i);
+    }
+    _changed();
+  }
+
+  Subject addSubject(String name) {
+    final s = Subject(
+      id: _uuid.v4(),
+      name: name.trim(),
+      color: palette[_subjects.length % palette.length],
+      order: _subjects.values.fold(-1, (m, s) => s.order > m ? s.order : m) + 1,
+      updatedAt: now,
+    );
+    _subjects[s.id] = s;
+    _changed();
+    return s;
+  }
+
+  void renameSubject(String id, String name) {
+    final s = _subjects[id];
+    if (s == null) return;
+    _subjects[id] = s.copyWith(name: name.trim());
+    _changed();
+  }
+
+  void setSubjectColor(String id, int color) {
+    final s = _subjects[id];
+    if (s == null) return;
+    _subjects[id] = s.copyWith(color: color);
+    _changed();
+  }
+
+  /// 과목의 책 목록을 바꿉니다 (빈 이름·중복은 뺌).
+  void setSubjectBooks(String id, List<String> books) {
+    final s = _subjects[id];
+    if (s == null) return;
+    final clean = <String>[];
+    for (final b in books.map((b) => b.trim())) {
+      if (b.isNotEmpty && !clean.contains(b)) clean.add(b);
+    }
+    _subjects[id] = s.copyWith(books: clean);
+    _changed();
+  }
+
+  /// 이 과목에서 마지막으로 적은 책과 진도 (책을 정하면 그 책 기준).
+  ({String book, String progress})? lastProgress(
+    String subjectId, {
+    String? book,
+  }) {
+    StudySession? best;
+    for (final s in _sessions.values) {
+      if (s.deleted || s.subjectId != subjectId || s.book.isEmpty) continue;
+      if (book != null && s.book != book) continue;
+      if (best == null || s.endedAt.isAfter(best.endedAt)) best = s;
+    }
+    return best == null ? null : (book: best.book, progress: best.progress);
+  }
+
+  /// 이 과목의 책을 최근에 쓴 순서로 (안 쓴 책은 등록한 순서대로 뒤에).
+  List<String> recentBooks(String subjectId) {
+    final s = _subjects[subjectId];
+    if (s == null) return const [];
+    final used = <String, DateTime>{};
+    for (final x in _sessions.values) {
+      if (x.deleted || x.book.isEmpty) continue;
+      final t = used[x.book];
+      if (t == null || x.endedAt.isAfter(t)) used[x.book] = x.endedAt;
+    }
+    final books = [...s.books];
+    final epoch = DateTime.utc(1970);
+    books.sort((a, b) => (used[b] ?? epoch).compareTo(used[a] ?? epoch));
+    return books;
+  }
+
+  /// 삭제한 과목 되돌리기.
+  void restoreSubject(String id) {
+    final s = _subjects[id];
+    if (s == null || !s.deleted) return;
+    _subjects[id] = s.copyWith(deleted: false);
+    _changed();
+  }
+
+  void deleteSubject(String id) {
+    final s = _subjects[id];
+    if (s == null) return;
+    _subjects[id] = s.copyWith(deleted: true);
+    _changed();
+  }
+
+  /// 기록을 직접 추가하거나 고칩니다. [id]가 없으면 새 기록.
+  StudySession saveSession({
+    String? id,
+    required String subjectId,
+    required DateTime startedAt,
+    required int focusSeconds,
+    int? focusRating,
+    String recallNote = '',
+    String book = '',
+    String progress = '',
+  }) {
+    final old = id == null ? null : _sessions[id];
+    final start = startedAt.toUtc();
+    final s = StudySession(
+      id: id ?? _uuid.v4(),
+      subjectId: subjectId,
+      startedAt: start,
+      endedAt: start.add(Duration(seconds: focusSeconds)),
+      plannedMinutes: old?.plannedMinutes ?? 0,
+      focusSeconds: focusSeconds,
+      focusRating: focusRating,
+      recallNote: recallNote,
+      question: old?.question ?? '',
+      restType: old?.restType,
+      distractions: old?.distractions ?? 0,
+      distractedSeconds: old?.distractedSeconds ?? 0,
+      book: book.trim(),
+      progress: normalizeProgress(progress),
+      updatedAt: now,
+    );
+    _sessions[s.id] = s;
+    _changed();
+    return s;
+  }
+
+  /// 휴식 중 한 일을 방금 끝낸 블록에 적어 둡니다.
+  void setRestType(RestType type) {
+    final s = _sessions[_timer.lastSessionId];
+    if (s == null) return;
+    _sessions[s.id] = s.copyWith(restType: type.name);
+    _changed();
+  }
+
+  /// 목표·길이처럼 기기끼리 맞추는 설정이 바뀌면 다른 기기에도 보냅니다.
+  void updateSettings(Settings settings) {
+    final shared = settings.sharedDiffers(_settings);
+    _settings = shared
+        ? settings.copyWith(sharedUpdatedAt: DateTime.now().toUtc())
+        : settings;
+    _changed(local: shared);
+  }
+
+  // ---------- 딴생각 메모 ----------
+
+  void addThought(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return;
+    _thoughts.add(ThoughtNote(id: _uuid.v4(), text: t, createdAt: now));
+    _changed(local: false);
+  }
+
+  void toggleThought(String id) {
+    final i = _thoughts.indexWhere((t) => t.id == id);
+    if (i < 0) return;
+    _thoughts[i] = _thoughts[i].copyWith(done: !_thoughts[i].done);
+    _changed(local: false);
+  }
+
+  /// 처리한 메모를 모두 지웁니다.
+  void clearDoneThoughts() {
+    _thoughts.removeWhere((t) => t.done);
+    _changed(local: false);
+  }
+
+  void deleteThought(String id) {
+    _thoughts.removeWhere((t) => t.id == id);
+    _changed(local: false);
+  }
+
+  void deleteSession(String id) {
+    final s = _sessions[id];
+    if (s == null) return;
+    _sessions[id] = s.copyWith(deleted: true);
+    _changed();
+  }
+
+  // ---------- 타이머 ----------
+
+  void _setTimer(TimerState next, {bool local = true}) {
+    final prev = _timer;
+    _timer = next;
+    onTimerChanged?.call(prev, next);
+    _changed(local: local);
+  }
+
+  /// 오늘(공부 날짜 기준) 끝까지 채운 블록 수. 날이 바뀌면 0부터 다시 셉니다.
+  int get blocksToday => _timer.blocksDay == _todayKey ? _timer.blocksDone : 0;
+
+  /// 오늘 공부 날짜 (YYYY-MM-DD, 하루가 바뀌는 시각 기준).
+  String get studyDayKey => _todayKey;
+
+  String get _todayKey =>
+      studyDate(now, _settings.dayStartHour).toIso8601String().substring(0, 10);
+
+  void startFocus(
+    String subjectId,
+    int presetIndex, {
+    bool stopwatch = false,
+  }) => _setTimer(
+    TimerLogic.startFocus(
+      // 어제 센 블록 수는 이어 가지 않습니다 (긴 휴식 주기도 오늘부터).
+      _timer.blocksDay == _todayKey
+          ? _timer
+          : TimerState.fromJson({
+              ..._timer.toJson(),
+              'blocks_done': 0,
+              'blocks_day': _todayKey,
+            }),
+      subjectId: subjectId,
+      presetIndex: presetIndex,
+      preset: _settings.presetAt(presetIndex),
+      sessionId: _uuid.v4(),
+      now: now,
+      stopwatch: stopwatch,
+    ),
+  );
+
+  void pause() => _setTimer(TimerLogic.pause(_timer, now));
+  void resume() => _setTimer(TimerLogic.resume(_timer, now));
+  void finishFocus() => _setTimer(TimerLogic.finishFocus(_timer, now));
+  void cancel() => _setTimer(TimerLogic.toIdle(_timer, now));
+  void skipRest() => _setTimer(TimerLogic.toIdle(_timer, now));
+
+  /// 맨 앞 앱이 바뀌었을 때 (Mac). 딴짓 앱 목록에 있으면 딴짓으로 셉니다.
+  /// 새로 딴짓을 시작했으면 true (알림을 띄우는 데 씁니다).
+  bool frontAppChanged(String appName) {
+    final blocked =
+        _settings.watchApps && _settings.blockedApps.contains(appName);
+    final next = blocked
+        ? TimerLogic.enterDistraction(_timer, now)
+        : TimerLogic.leaveDistraction(_timer, now);
+    if (identical(next, _timer)) return false;
+    _setTimer(next);
+    return blocked;
+  }
+
+  /// 집중 중에 과목 바꾸기. 앞 과목에서 집중한 시간은 따로 기록됩니다.
+  void switchSubject(String subjectId) {
+    final (session, next) = TimerLogic.switchSubject(
+      _timer,
+      subjectId: subjectId,
+      sessionId: _uuid.v4(),
+      now: now,
+    );
+    if (identical(next, _timer)) return;
+    if (session != null) _sessions[session.id] = session;
+    _setTimer(next);
+  }
+
+  void submitRecall({
+    int? rating,
+    String note = '',
+    String book = '',
+    String progress = '',
+    String? subjectId,
+  }) {
+    final (session, next) = TimerLogic.submitRecall(
+      _timer,
+      now: now,
+      focusRating: rating,
+      recallNote: note,
+    );
+    _sessions[session.id] = session.copyWith(
+      subjectId: subjectId,
+      book: book.trim(),
+      progress: normalizeProgress(progress),
+    );
+    _setTimer(
+      next.blocksDone > _timer.blocksDone
+          ? TimerState.fromJson({...next.toJson(), 'blocks_day': _todayKey})
+          : next,
+    );
+  }
+
+  /// 매초 호출해 시간이 다 된 단계를 넘깁니다.
+  void startTicking() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  void tick() {
+    final next = TimerLogic.tick(_timer, now);
+    if (!identical(next, _timer)) {
+      _setTimer(next);
+    } else if (_timer.isRunning) {
+      notifyListeners(); // 남은 시간 표시 갱신
+    }
+  }
+
+  // ---------- 동기화에서 받은 데이터 ----------
+
+  /// 서버에서 받은 데이터를 합칩니다. 같은 항목은 더 최근에 바뀐 쪽이 이깁니다.
+  void mergeRemote({
+    Iterable<Subject> subjects = const [],
+    Iterable<StudySession> sessions = const [],
+    TimerState? timer,
+    Map<String, dynamic>? settings,
+  }) {
+    var changed = false;
+    final remoteAt = DateTime.tryParse(
+      settings?['shared_updated_at'] as String? ?? '',
+    );
+    final localAt = _settings.sharedUpdatedAt;
+    if (remoteAt != null && (localAt == null || remoteAt.isAfter(localAt))) {
+      _settings = _settings.withShared(settings!);
+      changed = true;
+    }
+    for (final s in subjects) {
+      final local = _subjects[s.id];
+      if (local == null || s.updatedAt.isAfter(local.updatedAt)) {
+        _subjects[s.id] = s;
+        changed = true;
+      }
+    }
+    for (final s in sessions) {
+      final local = _sessions[s.id];
+      if (local == null || s.updatedAt.isAfter(local.updatedAt)) {
+        _sessions[s.id] = s;
+        changed = true;
+      }
+    }
+    if (timer != null && timer.updatedAt.isAfter(_timer.updatedAt)) {
+      final prev = _timer;
+      _timer = timer;
+      onTimerChanged?.call(prev, timer);
+      changed = true;
+    }
+    if (changed) _changed(local: false);
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+}
