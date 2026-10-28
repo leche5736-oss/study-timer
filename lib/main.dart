@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/notifications.dart';
+import 'services/posture_recorder.dart';
 import 'services/store.dart';
 import 'services/sync_config.dart';
 import 'services/live_activity.dart';
@@ -56,6 +57,7 @@ Future<void> main() async {
   }
 
   Updater.start();
+  PostureRecorder.start(store);
   store.addListener(updateMenuBar);
   void updateLiveActivity() => LiveActivity.sync(
     store.timer,

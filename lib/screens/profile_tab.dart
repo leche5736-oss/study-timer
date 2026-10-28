@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
 import '../services/notifications.dart';
+import '../services/posture_recorder.dart';
 import '../services/store.dart';
 import '../services/sync.dart';
 import '../services/sync_config.dart';
@@ -201,6 +202,19 @@ class ProfileTab extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const HeadTestScreen()),
                 ),
               ),
+              if (PostureRecorder.instance case final rec?)
+                ValueListenableBuilder<bool>(
+                  valueListenable: rec.enabled,
+                  builder: (context, on, _) => SwitchListTile(
+                    title: const Text('집중할 때 고개 각도 기록'),
+                    subtitle: const Text(
+                      '알림 없이 기록만 해요. 블록 처음 2분을 기준 자세로 잡고, '
+                      '기록 탭에 고개 숙인 시간이 보여요.',
+                    ),
+                    value: on,
+                    onChanged: rec.setEnabled,
+                  ),
+                ),
             ],
             const _Header('기기 간 동기화'),
             ValueListenableBuilder<SyncConfig?>(

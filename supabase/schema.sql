@@ -96,6 +96,9 @@ alter table public.subjects add column if not exists books jsonb not null defaul
 alter table public.sessions add column if not exists book text not null default '';
 alter table public.sessions add column if not exists progress text not null default '';
 
+-- 0.9.13: 에어팟 고개 각도 기록 (블록마다 기준 자세, 고개 숙인 시간, 분마다 각도)
+alter table public.sessions add column if not exists posture jsonb;
+
 -- 0.9.9: 오늘 공부 계획. COSMOS(Claude) 같은 계획 도구가 하루 한 줄씩 써 넣고, 앱은 읽기만 합니다.
 -- items 예: [{"subject":"형법","task":"형법 45강","minutes":120,"book":"형법총론","target":"p.58"}]
 create table if not exists public.daily_plans (

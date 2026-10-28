@@ -7,6 +7,12 @@ import '../theme.dart';
 import 'dock.dart';
 import 'session_editor.dart';
 
+/// 에어팟 고개 각도 기록이 있으면 " · 고개 숙임 N분" (1분 미만이면 빈 글자).
+String _postureText(Map<String, dynamic>? p) {
+  final down = (p?['down'] as num?)?.toInt() ?? 0;
+  return down < 60 ? '' : ' · 고개 숙임 ${down ~/ 60}분';
+}
+
 String _formatDate(DateTime utc) {
   final d = utc.toLocal();
   String two(int v) => v.toString().padLeft(2, '0');
@@ -92,7 +98,8 @@ class HistoryTab extends StatelessWidget {
             '${s.book.isEmpty ? '' : ' · ${s.book}${s.progress.isEmpty ? '' : ' ${s.progress}까지'}'}'
             '${s.focusRating == null ? '' : ' · 집중도 ${s.focusRating}'}'
             '${RestType.byName(s.restType) == null ? '' : ' · 휴식: ${RestType.byName(s.restType)!.label}'}'
-            '${s.distractions == 0 ? '' : ' · 딴짓 ${s.distractions}회 ${formatDuration(s.distractedSeconds)}'}',
+            '${s.distractions == 0 ? '' : ' · 딴짓 ${s.distractions}회 ${formatDuration(s.distractedSeconds)}'}'
+            '${_postureText(s.posture)}',
           ),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
