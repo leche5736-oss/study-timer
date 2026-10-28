@@ -26,6 +26,8 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSMotionUsageDescription</key>
+	<string>에어팟을 끼고 공부할 때 고개를 얼마나 숙였는지 보려고 머리 움직임을 읽어요.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>
