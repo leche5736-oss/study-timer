@@ -92,6 +92,10 @@ class MainFlutterWindow: NSWindow {
       binaryMessenger: flutterViewController.engine.binaryMessenger)
     headChannel.setMethodCallHandler { [weak self] call, result in
       guard let self = self else { return result(nil) }
+      if call.method == "ding" {
+        _ = NSSound(named: "Tink")?.play()
+        return result(nil)
+      }
       guard #available(macOS 14.0, *) else { return result("unsupported") }
       let tracker = (self.head as? HeadTracker) ?? HeadTracker(channel: headChannel)
       self.head = tracker

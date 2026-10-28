@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/head_motion.dart';
+import '../services/posture_recorder.dart';
 import '../theme.dart';
 
 /// 에어팟이 고개 각도를 제대로 보내는지 확인하는 화면 (자세 알림 1단계).
@@ -18,7 +19,7 @@ class _HeadTestScreenState extends State<HeadTestScreen> {
   StreamSubscription<String>? _statusSub;
   String _state = '시작하는 중';
   HeadPose? _pose;
-  double? _base;
+  double? get _base => PostureRecorder.instance?.base.value;
 
   @override
   void initState() {
@@ -72,8 +73,9 @@ class _HeadTestScreenState extends State<HeadTestScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           Text(
-            '에어팟을 끼고 고개를 천천히 숙였다 들어 보세요. '
-            '큰 숫자가 따라 움직이면 성공이에요.',
+            '평소 바르게 책을 읽는 자세에서 "바른 자세로 저장"을 눌러 주세요. '
+            '집중할 때 이 자세보다 5도 넘게 숙이면 고개 숙임으로 셉니다. '
+            '에어팟을 다시 낄 때마다 각도가 조금 달라질 수 있어요.',
             style: text.bodyMedium?.copyWith(color: AppColors.grey),
           ),
           const SizedBox(height: 32),
@@ -88,7 +90,7 @@ class _HeadTestScreenState extends State<HeadTestScreen> {
           ),
           Center(
             child: Text(
-              _base == null ? '앞뒤 기울기' : '기준 자세보다 앞뒤로',
+              _base == null ? '앞뒤 기울기 (숙이면 −)' : '바른 자세보다 앞뒤로 (−5° 넘으면 고개 숙임)',
               style: text.bodySmall?.copyWith(color: AppColors.grey),
             ),
           ),
@@ -97,8 +99,16 @@ class _HeadTestScreenState extends State<HeadTestScreen> {
             child: FilledButton(
               onPressed: p == null
                   ? null
-                  : () => setState(() => _base = p.pitch),
-              child: const Text('지금 자세를 기준으로'),
+                  : () => setState(
+                      () => PostureRecorder.instance?.saveBase(p.pitch),
+                    ),
+              child: const Text('지금 자세를 바른 자세로 저장'),
+            ),
+          ),
+          Center(
+            child: TextButton(
+              onPressed: HeadMotion.ding,
+              child: const Text('알림 소리 들어 보기'),
             ),
           ),
           const SizedBox(height: 32),

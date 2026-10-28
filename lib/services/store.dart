@@ -351,6 +351,7 @@ class AppStore extends ChangeNotifier {
       distractedSeconds: old?.distractedSeconds ?? 0,
       book: book.trim(),
       progress: normalizeProgress(progress),
+      posture: old?.posture,
       updatedAt: now,
     );
     _sessions[s.id] = s;
@@ -427,6 +428,9 @@ class AppStore extends ChangeNotifier {
   String get _todayKey =>
       studyDate(now, _settings.dayStartHour).toIso8601String().substring(0, 10);
 
+  /// 블록(기록 id)마다 에어팟 고개 각도 요약을 돌려줍니다 (PostureRecorder).
+  Map<String, dynamic>? Function(String sessionId)? postureFor;
+
   void startFocus(
     String subjectId,
     int presetIndex, {
@@ -478,7 +482,11 @@ class AppStore extends ChangeNotifier {
       now: now,
     );
     if (identical(next, _timer)) return;
-    if (session != null) _sessions[session.id] = session;
+    if (session != null) {
+      _sessions[session.id] = session.copyWith(
+        posture: postureFor?.call(session.id),
+      );
+    }
     _setTimer(next);
   }
 
@@ -499,6 +507,7 @@ class AppStore extends ChangeNotifier {
       subjectId: subjectId,
       book: book.trim(),
       progress: normalizeProgress(progress),
+      posture: postureFor?.call(session.id),
     );
     _setTimer(
       next.blocksDone > _timer.blocksDone

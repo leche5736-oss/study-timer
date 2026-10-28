@@ -77,6 +77,9 @@ class StudySession {
   final int distractedSeconds; // 딴짓 앱에 머문 시간
   final String book; // 이 블록에서 본 책 ('' = 안 적음)
   final String progress; // 어디까지 봤는지 (예: "120쪽", "3장 2절")
+
+  /// 에어팟 고개 각도 기록 (Mac, 0.9.13). 없으면 null. 모양은 summarizePosture 참고.
+  final Map<String, dynamic>? posture;
   final bool deleted;
   final DateTime updatedAt;
 
@@ -95,6 +98,7 @@ class StudySession {
     this.distractedSeconds = 0,
     this.book = '',
     this.progress = '',
+    this.posture,
     this.deleted = false,
     required this.updatedAt,
   });
@@ -105,6 +109,7 @@ class StudySession {
     String? restType,
     String? book,
     String? progress,
+    Map<String, dynamic>? posture,
   }) => StudySession(
     id: id,
     subjectId: subjectId ?? this.subjectId,
@@ -120,6 +125,7 @@ class StudySession {
     distractedSeconds: distractedSeconds,
     book: book ?? this.book,
     progress: progress ?? this.progress,
+    posture: posture ?? this.posture,
     deleted: deleted ?? this.deleted,
     updatedAt: DateTime.now().toUtc(),
   );
@@ -139,6 +145,8 @@ class StudySession {
     'distracted_seconds': distractedSeconds,
     'book': book,
     'progress': progress,
+    // 기록이 없으면 칸을 아예 보내지 않아, 서버에 posture 칸이 없어도 동기화됩니다.
+    if (posture != null) 'posture': posture,
     'deleted': deleted,
     'updated_at': updatedAt.toIso8601String(),
   };
@@ -158,6 +166,7 @@ class StudySession {
     distractedSeconds: (j['distracted_seconds'] as num?)?.toInt() ?? 0,
     book: j['book'] as String? ?? '',
     progress: j['progress'] as String? ?? '',
+    posture: (j['posture'] as Map?)?.cast<String, dynamic>(),
     deleted: j['deleted'] as bool? ?? false,
     updatedAt: _parse(j['updated_at'])!,
   );

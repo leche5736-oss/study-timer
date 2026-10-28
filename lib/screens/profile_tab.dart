@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
 import '../services/notifications.dart';
+import '../services/posture_recorder.dart';
 import '../services/store.dart';
 import '../services/sync.dart';
 import '../services/sync_config.dart';
@@ -194,13 +195,50 @@ class ProfileTab extends StatelessWidget {
               ),
               const _Header('에어팟 자세 (테스트)'),
               ListTile(
-                title: const Text('고개 각도 보기'),
+                title: const Text('고개 각도 보기 · 바른 자세 저장'),
                 subtitle: const Text('에어팟 프로·맥스·3세대 이상, macOS 14 이상'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const HeadTestScreen()),
                 ),
               ),
+              if (PostureRecorder.instance case final rec?)
+                ListenableBuilder(
+                  listenable: rec.settings,
+                  builder: (context, _) => Column(
+                    children: [
+                      SwitchListTile(
+                        title: const Text('집중할 때 고개 각도 기록'),
+                        subtitle: Text(
+                          rec.base.value == null
+                              ? '바른 자세를 저장하지 않아 블록 처음 2분을 기준으로 써요'
+                              : '저장한 바른 자세보다 5도 넘게 숙인 시간이 기록 탭에 보여요',
+                        ),
+                        value: rec.enabled.value,
+                        onChanged: rec.setEnabled,
+                      ),
+                      if (rec.enabled.value) ...[
+                        SwitchListTile(
+                          title: const Text('오래 숙이면 소리로 알려 주기'),
+                          subtitle: Text(
+                            '5도 넘게 숙인 채 ${rec.alertMin.value}분이 지나면 소리 한 번',
+                          ),
+                          value: rec.alert.value,
+                          onChanged: rec.setAlert,
+                        ),
+                        if (rec.alert.value)
+                          _MinutesTile(
+                            title: '알림까지',
+                            minutes: rec.alertMin.value,
+                            min: 1,
+                            max: 15,
+                            step: 1,
+                            onChanged: rec.setAlertMin,
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
             ],
             const _Header('기기 간 동기화'),
             ValueListenableBuilder<SyncConfig?>(

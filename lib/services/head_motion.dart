@@ -82,6 +82,16 @@ class HeadMotion {
     }
   }
 
+  /// 짧은 알림 소리 하나 (에어팟을 끼고 있으면 에어팟으로 들려요).
+  static Future<void> ding() async {
+    if (!supported) return;
+    try {
+      await _channel.invokeMethod('ding');
+    } catch (e) {
+      debugPrint('에어팟 자세 소리 실패: $e');
+    }
+  }
+
   static Future<void> stop() async {
     if (!supported) return;
     try {
