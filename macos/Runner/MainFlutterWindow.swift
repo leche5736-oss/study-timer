@@ -1,4 +1,5 @@
 import Cocoa
+import CoreMotion
 import FlutterMacOS
 import ServiceManagement
 
@@ -6,6 +7,7 @@ class MainFlutterWindow: NSWindow {
   private var channel: FlutterMethodChannel?
   private var frameBeforeMini: NSRect?
   private var statusItem: NSStatusItem?
+  private var head: AnyObject?  // HeadTracker (macOS 14 이상)
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -82,6 +84,26 @@ class MainFlutterWindow: NSWindow {
         note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
       guard let name = app?.localizedName else { return }
       self?.channel?.invokeMethod("frontAppChanged", arguments: name)
+    }
+
+    // 에어팟 고개 각도 (lib/services/head_motion.dart)
+    let headChannel = FlutterMethodChannel(
+      name: "study_timer/head",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    headChannel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { return result(nil) }
+      guard #available(macOS 14.0, *) else { return result("unsupported") }
+      let tracker = (self.head as? HeadTracker) ?? HeadTracker(channel: headChannel)
+      self.head = tracker
+      switch call.method {
+      case "start":
+        result(tracker.start())
+      case "stop":
+        tracker.stop()
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
 
     super.awakeFromNib()
@@ -193,5 +215,69 @@ class MainFlutterWindow: NSWindow {
       }
       DispatchQueue.main.async { result(out) }
     }.resume()
+  }
+}
+
+/// 에어팟(프로·맥스·3세대 이상)의 머리 움직임을 읽어 Flutter에 보냅니다.
+/// 각도는 도 단위이고, 1초에 10번까지만 보냅니다.
+@available(macOS 14.0, *)
+final class HeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
+  private let manager = CMHeadphoneMotionManager()
+  private let channel: FlutterMethodChannel
+  private var lastSent = Date.distantPast
+
+  init(channel: FlutterMethodChannel) {
+    self.channel = channel
+    super.init()
+    manager.delegate = self
+  }
+
+  /// "started", "denied", "unavailable" 중 하나를 돌려줍니다.
+  func start() -> String {
+    guard manager.isDeviceMotionAvailable else { return "unavailable" }
+    switch CMHeadphoneMotionManager.authorizationStatus() {
+    case .denied, .restricted: return "denied"
+    default: break
+    }
+    if manager.isDeviceMotionActive { return "started" }
+    manager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+      guard let self = self else { return }
+      if let error = error {
+        self.channel.invokeMethod("status", arguments: "error: \(error.localizedDescription)")
+        return
+      }
+      guard let m = motion else { return }
+      let now = Date()
+      if now.timeIntervalSince(self.lastSent) < 0.1 { return }
+      self.lastSent = now
+      let deg = 180 / Double.pi
+      let bud: String
+      switch m.sensorLocation {
+      case .headphoneLeft: bud = "left"
+      case .headphoneRight: bud = "right"
+      default: bud = ""
+      }
+      let pose: [String: Any] = [
+        "pitch": m.attitude.pitch * deg,
+        "roll": m.attitude.roll * deg,
+        "yaw": m.attitude.yaw * deg,
+        "gx": m.gravity.x, "gy": m.gravity.y, "gz": m.gravity.z,
+        "bud": bud,
+      ]
+      self.channel.invokeMethod("pose", arguments: pose)
+    }
+    return "started"
+  }
+
+  func stop() {
+    manager.stopDeviceMotionUpdates()
+  }
+
+  func headphoneMotionManagerDidConnect(_ manager: CMHeadphoneMotionManager) {
+    channel.invokeMethod("status", arguments: "connected")
+  }
+
+  func headphoneMotionManagerDidDisconnect(_ manager: CMHeadphoneMotionManager) {
+    channel.invokeMethod("status", arguments: "disconnected")
   }
 }

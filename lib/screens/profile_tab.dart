@@ -13,6 +13,7 @@ import '../services/updater.dart';
 import '../services/window.dart';
 import '../theme.dart';
 import '../version.dart';
+import 'head_test.dart';
 import 'thoughts_list.dart';
 
 /// 내 정보: 계정·동기화, 알릴 것(새 버전, 딴생각 메모), 설정.
@@ -189,6 +190,15 @@ class ProfileTab extends StatelessWidget {
                       onPressed: () => _addApps(context),
                     ),
                   ],
+                ),
+              ),
+              const _Header('에어팟 자세 (테스트)'),
+              ListTile(
+                title: const Text('고개 각도 보기'),
+                subtitle: const Text('에어팟 프로·맥스·3세대 이상, macOS 14 이상'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HeadTestScreen()),
                 ),
               ),
             ],
