@@ -1,0 +1,25 @@
+# iPhone/iPad용 빌드가 깨지지 않았는지 클라우드 Mac에서 확인만 합니다 (서명·설치 없음).
+# 실제 설치는 README의 "iPhone / iPad에 설치하기"를 따르세요.
+name: iPhone 빌드 확인
+
+on:
+  push:
+    branches: [main, claude/project-thread-0xriid]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-check
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign

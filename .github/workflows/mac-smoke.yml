@@ -1,0 +1,33 @@
+# 받은 Mac 앱을 클라우드 Mac에서 실제로 켜 보고, 멈추는 곳을 기록합니다 (문제 확인용).
+name: Mac 앱 실행 확인
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/project-thread-0xriid]
+    paths: [.github/workflows/mac-smoke.yml]
+
+jobs:
+  smoke:
+    runs-on: macos-latest
+    steps:
+      - name: 최신 Release 받기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern StudyTimer-mac.zip --dir dl
+          ditto -x -k dl/StudyTimer-mac.zip app
+          ls app
+      - name: 켜 보기 (40초)
+        run: |
+          APP="app/공부 타이머.app"
+          BIN="$APP/Contents/MacOS/$(defaults read "$PWD/$APP/Contents/Info" CFBundleExecutable)"
+          "$BIN" > out.log 2>&1 &
+          PID=$!
+          sleep 20
+          echo "=== 살아 있나: $(kill -0 $PID 2>/dev/null && echo yes || echo no)"
+          sample $PID 5 -file sample.txt || true
+          sleep 15
+          kill $PID 2>/dev/null || true
+          echo "=== 앱 출력"; cat out.log
+          echo "=== 메인 스레드"; sed -n '1,120p' sample.txt || true
