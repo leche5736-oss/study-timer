@@ -251,16 +251,20 @@ final class HeadTracker: NSObject, CMHeadphoneMotionManagerDelegate {
       if now.timeIntervalSince(self.lastSent) < 0.1 { return }
       self.lastSent = now
       let deg = 180 / Double.pi
-      self.channel.invokeMethod(
-        "pose",
-        arguments: [
-          "pitch": m.attitude.pitch * deg,
-          "roll": m.attitude.roll * deg,
-          "yaw": m.attitude.yaw * deg,
-          "gx": m.gravity.x, "gy": m.gravity.y, "gz": m.gravity.z,
-          "bud": m.sensorLocation == .headphoneLeft
-            ? "left" : (m.sensorLocation == .headphoneRight ? "right" : ""),
-        ])
+      let bud: String
+      switch m.sensorLocation {
+      case .headphoneLeft: bud = "left"
+      case .headphoneRight: bud = "right"
+      default: bud = ""
+      }
+      let pose: [String: Any] = [
+        "pitch": m.attitude.pitch * deg,
+        "roll": m.attitude.roll * deg,
+        "yaw": m.attitude.yaw * deg,
+        "gx": m.gravity.x, "gy": m.gravity.y, "gz": m.gravity.z,
+        "bud": bud,
+      ]
+      self.channel.invokeMethod("pose", arguments: pose)
     }
     return "started"
   }
